@@ -404,28 +404,47 @@ icosoc_v["30-sramif"].append("""
     reg [15:0] sram_dout;
     wire [15:0] sram_din;
 
+    reg [5:0] hram_state;
+    reg hram_ce;
+    reg hram_ck;
+    reg hram_rwds;
+    reg hram_rwds_dir;
+    reg hram_long_latency;
+    wire hram_rwds_din;
+    reg hram_dir;
+
     SB_IO #(
         .PIN_TYPE(6'b 1010_01),
         .PULLUP(1'b 0)
-    ) sram_io [15:0] (
+    ) sram_dio [15:0] (
         .PACKAGE_PIN({SRAM_D15, SRAM_D14, SRAM_D13, SRAM_D12, SRAM_D11, SRAM_D10, SRAM_D9, SRAM_D8,
                       SRAM_D7, SRAM_D6, SRAM_D5, SRAM_D4, SRAM_D3, SRAM_D2, SRAM_D1, SRAM_D0}),
-        .OUTPUT_ENABLE(sram_wrlb || sram_wrub),
+        .OUTPUT_ENABLE(sram_wrlb || sram_wrub || hram_dir),
         .D_OUT_0(sram_dout),
         .D_IN_0(sram_din)
     );
-""")
 
-icosoc_v["30-sramif"].append("""
-    assign {SRAM_A18, SRAM_A17, SRAM_A16, SRAM_A15, SRAM_A14, SRAM_A13, SRAM_A12, SRAM_A11, SRAM_A10, SRAM_A9, SRAM_A8,
-            SRAM_A7, SRAM_A6, SRAM_A5, SRAM_A4, SRAM_A3, SRAM_A2, SRAM_A1, SRAM_A0} = sram_addr;
+    SB_IO #(
+        .PIN_TYPE(6'b 1010_01),
+        .PULLUP(1'b 0)
+    ) hram_rwds_io (
+        .PACKAGE_PIN(SRAM_A18),
+        .OUTPUT_ENABLE(hram_rwds_dir),
+        .D_OUT_0(hram_state != 0 ? hram_rwds : sram_addr[18]),
+        .D_IN_0(hram_rwds_din)
+    );
 
-    assign SRAM_CE = 0;
+    assign SRAM_A17 = hram_state ? hram_ce : sram_addr[17];
+
+    assign {SRAM_A16, SRAM_A15, SRAM_A14, SRAM_A13, SRAM_A12, SRAM_A11, SRAM_A10, SRAM_A9, SRAM_A8,
+            SRAM_A7, SRAM_A6, SRAM_A5, SRAM_A4, SRAM_A3, SRAM_A2, SRAM_A1, SRAM_A0} = sram_addr[16:0];
+
+    assign SRAM_CE = hram_state != 0;
     assign SRAM_WE = (sram_wrlb || sram_wrub) ? !clk90 : 1;
     assign SRAM_OE = (sram_wrlb || sram_wrub);
     assign SRAM_LB = (sram_wrlb || sram_wrub) ? !sram_wrlb : 0;
     assign SRAM_UB = (sram_wrlb || sram_wrub) ? !sram_wrub : 0;
-    assign HRAM_CK = 0;
+    assign HRAM_CK = (hram_state != 0) && hram_ck;
 """)
 
 icosoc_v["30-raspif"].append("""
@@ -824,8 +843,16 @@ icosoc_v["70-bus"].append("""
         sram_state <= 0;
         sram_wrlb <= 0;
         sram_wrub <= 0;
-        sram_addr <= 'bx;
-        sram_dout <= 'bx;
+        sram_addr <= 0;
+        hram_state <= 0;
+        if (!hram_state) begin
+            sram_dout <= 0;
+            hram_rwds <= 0;
+            hram_rwds_dir <= 0;
+            hram_dir <= 0;
+            hram_ce <= 0;
+            hram_ck <= 0;
+        end
 """)
 
 icosoc_v["72-bus"].append("""
@@ -899,6 +926,62 @@ icosoc_v["72-bus"].append("""
                             end
                         endcase
                     end
+                end
+                (mem_addr & 32'hF000_0000) == 32'h1000_0000: begin
+                    hram_state <= hram_state + 1;
+                    hram_ck <= hram_state[1] && hram_state;
+                    case (hram_state)
+                        0: begin
+                            hram_ce <= 1;
+                        end
+                        1: begin
+                            hram_ce <= 0;
+                            hram_dir <= 1;
+                            sram_dout[7:0] <= {!mem_wstrb, 1'b0, 1'b1, 4'b0, mem_addr[27]};
+                        end
+                        3: begin
+                            sram_dout[7:0] <= mem_addr[26:19];
+                            hram_long_latency <= hram_rwds_din;
+                        end
+                        5: begin
+                            sram_dout[7:0] <= mem_addr[18:11];
+                        end
+                        7: begin
+                            sram_dout[7:0] <= mem_addr[10:3];
+                        end
+                        9: begin
+                            sram_dout[7:0] <= 0;
+                        end
+                        11: begin
+                            sram_dout[7:0] <= mem_addr[2:0];
+                            if (!hram_long_latency)
+                                hram_state <= hram_state + 17;
+                        end
+                        41: begin
+                            hram_rwds_dir <= 1;
+                            hram_rwds <= mem_wstrb[0];
+                            sram_dout[7:0] <= mem_wdata[7:0];
+                        end
+                        43: begin
+                            hram_rwds <= mem_wstrb[1];
+                            sram_dout[7:0] <= mem_wdata[15:8];
+                        end
+                        45: begin
+                            hram_rwds <= mem_wstrb[2];
+                            sram_dout[7:0] <= mem_wdata[23:16];
+                        end
+                        47: begin
+                            hram_rwds <= mem_wstrb[3];
+                            sram_dout[7:0] <= mem_wdata[31:24];
+                        end
+                        49: begin
+                            hram_ce <= 1;
+                        end
+                        50: begin
+                            mem_ready <= 1;
+                            hram_state <= 0;
+                        end
+                    endcase
                 end
                 (mem_addr & 32'hF000_0000) == 32'h2000_0000: begin
                     mem_ready <= 1;
@@ -1009,11 +1092,11 @@ icosoc_v["15-moddecl"].append("    output SRAM_A16, SRAM_A17, SRAM_A18,")
 
 icosoc_v["15-moddecl"].append("    inout SRAM_D0, SRAM_D1, SRAM_D2, SRAM_D3, SRAM_D4, SRAM_D5, SRAM_D6, SRAM_D7,")
 icosoc_v["15-moddecl"].append("    inout SRAM_D8, SRAM_D9, SRAM_D10, SRAM_D11, SRAM_D12, SRAM_D13, SRAM_D14, SRAM_D15,")
-icosoc_v["15-moddecl"].append("    output SRAM_CE, SRAM_WE, SRAM_OE, SRAM_LB, SRAM_UB, HRAM_CK,")
+icosoc_v["15-moddecl"].append("    output SRAM_CE, SRAM_WE, SRAM_OE, SRAM_LB, SRAM_UB, HRAM_CK")
 icosoc_v["15-moddecl"].append(");")
 
 iowires |= set("SRAM_A0 SRAM_A1 SRAM_A2 SRAM_A3 SRAM_A4 SRAM_A5 SRAM_A6 SRAM_A7".split())
-iowires |= set("SRAM_A8 SRAM_A9 SRAM_A10 SRAM_A11 SRAM_A12 SRAM_A13 SRAM_A14 SRAM_A15".split())
+iowires |= set("SRAM_A8 SRAM_A9 SRAM_A10 SRAM_A11 SRAM_A12 SRAM_A13 SRAM_A14 SRAM_A15 SRAM_A16 SRAM_A17 SRAM_A18".split())
 iowires |= set("SRAM_D0 SRAM_D1 SRAM_D2 SRAM_D3 SRAM_D4 SRAM_D5 SRAM_D6 SRAM_D7".split())
 iowires |= set("SRAM_D8 SRAM_D9 SRAM_D10 SRAM_D11 SRAM_D12 SRAM_D13 SRAM_D14 SRAM_D15".split())
 iowires |= set("SRAM_CE SRAM_WE SRAM_OE SRAM_LB SRAM_UB HRAM_CK".split())
@@ -1227,6 +1310,7 @@ tbfiles.add("%s/common/icosoc_debugger.v" % basedir)
 tbfiles.add("%s/common/icosoc_flashmem.v" % basedir)
 tbfiles.add("%s/common/icosoc_raspif.v" % basedir)
 tbfiles.add("%s/common/sim_sram.v" % basedir)
+tbfiles.add("%s/common/sim_hram.v" % basedir)
 tbfiles.add("%s/common/sim_spiflash.v" % basedir)
 tbfiles |= modvlog
 
@@ -1320,6 +1404,15 @@ for net in sorted(iowires):
     if net.startswith("SRAM_"):
         testbench["30-inst"].append("        .%s(%s)," % (net, net))
 testbench["30-inst"][-1] = testbench["30-inst"][-1].rstrip(",")
+testbench["30-inst"].append("    );")
+testbench["30-inst"].append("")
+
+testbench["30-inst"].append("    sim_hram hram (")
+for i in range(8):
+    testbench["30-inst"].append("        .HRAM_DQ%d(SRAM_D%d)," % (i, i))
+testbench["30-inst"].append("        .HRAM_CS(SRAM_A17),")
+testbench["30-inst"].append("        .HRAM_CK(HRAM_CK),")
+testbench["30-inst"].append("        .HRAM_RWDS(SRAM_A18)")
 testbench["30-inst"].append("    );")
 testbench["30-inst"].append("")
 
