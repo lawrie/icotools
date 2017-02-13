@@ -9,6 +9,10 @@ int main()
 	// generate a 38 kHz signal with pwm0
 	icosoc_pwm0_setmaxcnt(ICOSOC_CLOCK_FREQ_HZ / 38000);
 
+	*(volatile uint32_t*)(0x10000000) = 0x12345678;
+	unsigned int hram_value = *(volatile uint32_t*)(0x10000000);
+	printf("HyperRAM readback: %08x\n", hram_value);
+
 	for (uint8_t i = 0;; i++)
 	{
 		icosoc_leds(i);
