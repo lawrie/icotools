@@ -21,10 +21,8 @@ module sim_hram (
 	reg drive_rwds_hi = 0;
 	reg drive_rwds_lo = 0;
 
-	assign HRAM_RWDS = HRAM_CS ? 1'bz :
-		state < 6 ? long_latency :
-		drive_rwds_hi ? 1'b1 :
-		drive_rwds_lo ? 1'b0 : 1'bz;
+	assign HRAM_RWDS = HRAM_CS ? 1'bz : state < 6 ? long_latency :
+			drive_rwds_hi ? 1'b1 : drive_rwds_lo ? 1'b0 : 1'bz;
 
 	reg [15:0] memory [0:65535];
 
@@ -50,7 +48,6 @@ module sim_hram (
 						$display("HRAM REGISTER READ @%x: %x", cmd_addr, {hibyte, hram_din});
 						// ???
 					end
-
 					if (state == (long_latency ? 20 : 12)) begin
 						hram_dir <= 1;
 						hram_dout <= memory[cmd_addr[15:0]][15:8];
@@ -63,6 +60,7 @@ module sim_hram (
 						hram_dout <= memory[cmd_addr[15:0]][7:0];
 						drive_rwds_hi <= 0;
 						drive_rwds_lo <= 1;
+						{command[44:16], command[2:0]} <= {command[44:16], command[2:0]} + 1;
 						state <= state - 1;
 					end
 				end else begin
@@ -72,7 +70,6 @@ module sim_hram (
 					if (state == 7 && cmd_reg) begin
 						$display("HRAM REGISTER WRITE @%x: %x", cmd_addr, {hibyte, hram_din});
 					end
-
 					if (state == (long_latency ? 20 : 12)) begin
 						hibyte <= hram_din;
 						hibyte_en <= HRAM_RWDS;

@@ -404,12 +404,11 @@ icosoc_v["30-sramif"].append("""
     reg [15:0] sram_dout;
     wire [15:0] sram_din;
 
-    reg [5:0] hram_state;
+    reg [6:0] hram_state;
     reg hram_ce;
     reg hram_ck;
-    reg hram_rwds;
     reg hram_rwds_dir;
-    reg hram_long_latency;
+    reg hram_rwds_dout;
     wire hram_rwds_din;
     reg hram_dir;
 
@@ -429,12 +428,12 @@ icosoc_v["30-sramif"].append("""
         .PULLUP(1'b 0)
     ) hram_rwds_io (
         .PACKAGE_PIN(SRAM_A18),
-        .OUTPUT_ENABLE(hram_rwds_dir),
-        .D_OUT_0(hram_state != 0 ? hram_rwds : sram_addr[18]),
+        .OUTPUT_ENABLE(hram_state == 0 || hram_rwds_dir),
+        .D_OUT_0(hram_state != 0 ? hram_rwds_dout : (sram_addr[18] || 1)), // HRAM_HACK
         .D_IN_0(hram_rwds_din)
     );
 
-    assign SRAM_A17 = hram_state ? hram_ce : sram_addr[17];
+    assign SRAM_A17 = hram_state ? hram_ce : (sram_addr[17] || 1); // HRAM_HACK
 
     assign {SRAM_A16, SRAM_A15, SRAM_A14, SRAM_A13, SRAM_A12, SRAM_A11, SRAM_A10, SRAM_A9, SRAM_A8,
             SRAM_A7, SRAM_A6, SRAM_A5, SRAM_A4, SRAM_A3, SRAM_A2, SRAM_A1, SRAM_A0} = sram_addr[16:0];
@@ -847,7 +846,7 @@ icosoc_v["70-bus"].append("""
         hram_state <= 0;
         if (!hram_state) begin
             sram_dout <= 0;
-            hram_rwds <= 0;
+            hram_rwds_dout <= 0;
             hram_rwds_dir <= 0;
             hram_dir <= 0;
             hram_ce <= 0;
@@ -933,6 +932,7 @@ icosoc_v["72-bus"].append("""
                     case (hram_state)
                         0: begin
                             hram_ce <= 1;
+                            hram_rwds_dir <= 0;
                         end
                         1: begin
                             hram_ce <= 0;
@@ -941,7 +941,7 @@ icosoc_v["72-bus"].append("""
                         end
                         3: begin
                             sram_dout[7:0] <= mem_addr[26:19];
-                            hram_long_latency <= hram_rwds_din;
+                            // hram_long_latency <= hram_rwds_din;
                         end
                         5: begin
                             sram_dout[7:0] <= mem_addr[18:11];
@@ -954,24 +954,24 @@ icosoc_v["72-bus"].append("""
                         end
                         11: begin
                             sram_dout[7:0] <= mem_addr[2:0];
-                            if (!hram_long_latency)
-                                hram_state <= hram_state + 17;
+                            // if (!hram_long_latency)
+                            //     hram_state <= hram_state + 17;
                         end
                         41: begin
                             hram_rwds_dir <= 1;
-                            hram_rwds <= mem_wstrb[0];
+                            hram_rwds_dout <= mem_wstrb[0];
                             sram_dout[7:0] <= mem_wdata[7:0];
                         end
                         43: begin
-                            hram_rwds <= mem_wstrb[1];
+                            hram_rwds_dout <= mem_wstrb[1];
                             sram_dout[7:0] <= mem_wdata[15:8];
                         end
                         45: begin
-                            hram_rwds <= mem_wstrb[2];
+                            hram_rwds_dout <= mem_wstrb[2];
                             sram_dout[7:0] <= mem_wdata[23:16];
                         end
                         47: begin
-                            hram_rwds <= mem_wstrb[3];
+                            hram_rwds_dout <= mem_wstrb[3];
                             sram_dout[7:0] <= mem_wdata[31:24];
                         end
                         49: begin
@@ -1508,8 +1508,8 @@ testbench["90-footer"].append("""
         $readmemh("appimage.hex", appimage);
 
         for (i = 0; i < 'h10000; i=i+1) begin
-            sram.sram_memory[(i + 'h8000) % 'h10000][7:0] = appimage['h10000 + 2*i];
-            sram.sram_memory[(i + 'h8000) % 'h10000][15:8] = appimage['h10000 + 2*i + 1];
+            sram.sram_memory[((i + 'h8000) % 'h10000) | (3 << 17)][7:0] = appimage['h10000 + 2*i]; // HRAM_HACK
+            sram.sram_memory[((i + 'h8000) % 'h10000) | (3 << 17)][15:8] = appimage['h10000 + 2*i + 1]; // HRAM_HACK
         end
 
         for (i = 1*1024*1024; i < 2*1024*1024; i=i+1) begin
