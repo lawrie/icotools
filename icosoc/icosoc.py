@@ -61,8 +61,8 @@ def setboard(boardname):
 
     if boardname == "icoboard":
         pmod_locs = [
-            "A5 A2 C3 B4 B7 B6 B3 B5".split(),
             "D8 B9 B10 B11 B8 A9 A10 A11".split(),
+            "A5 A2 C3 B4 B7 B6 B3 B5".split(),
             "L9 G5 L7 N6 N9 P9 M8 N7".split(),
             "T15 T14 T11 R10 R14 T13 T10 T9".split(),
         ]
@@ -714,7 +714,7 @@ if len(debug_signals):
     wire debug_enable;
     wire debug_trigger;
     wire debug_triggered;
-    wire [30:0] debug_data;
+    wire [%d:0] debug_data;
 
     icosoc_debugger #(
         .WIDTH(%d),
@@ -739,7 +739,7 @@ if len(debug_signals):
     assign debug_enable = 1;
     assign debug_trigger = 1;
 
-    assign debug_data = {""" % (len(debug_signals), debug_depth, debug_trigat, debug_mode))
+    assign debug_data = {""" % (len(debug_signals)-1, len(debug_signals), debug_depth, debug_trigat, debug_mode))
 
     idx = len(debug_signals)-1
     for label, expr in sorted(debug_signals.items(), key=(lambda item: re.sub(r"\d+", (lambda match: "%05d" % int(match.group(0))), item[0]))):

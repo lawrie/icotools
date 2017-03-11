@@ -2,9 +2,9 @@ module icosoc_mod_rs232 (
 	input clk,
 	input resetn,
 
-	input ctrl_wr,
-	input ctrl_rd,
-	input [ 7:0] ctrl_addr,
+	input [ 3:0] ctrl_wr,
+	input        ctrl_rd,
+	input [15:0] ctrl_addr,
 	input [31:0] ctrl_wdat,
 	output reg [31:0] ctrl_rdat,
 	output reg ctrl_done,
@@ -150,7 +150,7 @@ module icosoc_mod_rs232 (
 		//   0x04 number of unread bytes in recv fifo (read-only)
 		//   0x08 number of free bytes in send fifo (read-only)
 		if (resetn && !ctrl_done) begin
-			if (ctrl_wr) begin
+			if (|ctrl_wr) begin
 				if (ctrl_addr == 0) begin
 					send_shift_in <= 1;
 					send_din <= ctrl_wdat;

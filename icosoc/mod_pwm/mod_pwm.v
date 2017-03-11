@@ -2,8 +2,8 @@ module icosoc_mod_pwm (
 	input clk,
 	input resetn,
 
-	input ctrl_wr,
-	input ctrl_rd,
+	input [ 3:0] ctrl_wr,
+	input        ctrl_rd,
 	input [15:0] ctrl_addr,
 	input [31:0] ctrl_wdat,
 	output reg [31:0] ctrl_rdat,
@@ -32,7 +32,7 @@ module icosoc_mod_pwm (
 			pin <= 0;
 		end else
 		if (!ctrl_done) begin
-			if (ctrl_wr) begin
+			if (|ctrl_wr) begin
 				ctrl_done <= 1;
 				case (ctrl_addr)
 					15'h 0000: counter <= ctrl_wdat;
