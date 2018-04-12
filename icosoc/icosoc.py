@@ -61,10 +61,10 @@ def setboard(boardname):
 
     if boardname == "icoboard":
         pmod_locs = [
-            "D8 B9 B10 B11 B8 A9 A10 A11".split(),
-            "A5 A2 C3 B4 B7 B6 B3 B5".split(),
-            "L9 G5 L7 N6 N9 P9 M8 N7".split(),
-            "T15 T14 T11 R10 R14 T13 T10 T9".split(),
+            "94 91 88 85 95 93 90 87".split(),
+            "105 102 99 97 104 101 98 96".split(),
+            "143 114 112 107 144 113 112 107".split(),
+            "10 9 2 1 8 7 4 3".split(),
         ]
 
     else:
@@ -92,7 +92,7 @@ def make_pins(pname):
                make_pins(pname + "_4") + make_pins(pname + "_3") + make_pins(pname + "_2") + make_pins(pname + "_1")
 
     if re.match(r"^[A-Z][0-9][0-9]?$", pname):
-        ploc = pname
+        ploc = pname[1:]
 
     assert ploc is not None
     assert ploc not in used_plocs
@@ -417,7 +417,7 @@ icosoc_v["30-sramif"].append("""
 """)
 
 icosoc_v["30-sramif"].append("""
-    assign {SRAM_A18, SRAM_A17, SRAM_A16, SRAM_A15, SRAM_A14, SRAM_A13, SRAM_A12, SRAM_A11, SRAM_A10, SRAM_A9, SRAM_A8,
+    assign {SRAM_A17, SRAM_A16, SRAM_A15, SRAM_A14, SRAM_A13, SRAM_A12, SRAM_A11, SRAM_A10, SRAM_A9, SRAM_A8,
             SRAM_A7, SRAM_A6, SRAM_A5, SRAM_A4, SRAM_A3, SRAM_A2, SRAM_A1, SRAM_A0} = sram_addr;
 
     assign SRAM_CE = 0;
@@ -425,7 +425,7 @@ icosoc_v["30-sramif"].append("""
     assign SRAM_OE = (sram_wrlb || sram_wrub);
     assign SRAM_LB = (sram_wrlb || sram_wrub) ? !sram_wrlb : 0;
     assign SRAM_UB = (sram_wrlb || sram_wrub) ? !sram_wrub : 0;
-    assign HRAM_CK = 0;
+    //assign HRAM_CK = 0;
 """)
 
 icosoc_v["30-raspif"].append("""
@@ -480,7 +480,7 @@ icosoc_v["30-raspif"].append("""
     wire trigger_2;  // unused
     wire trigger_3;  // unused
 
-    icosoc_raspif #(
+    /*icosoc_raspif #(
         .NUM_RECV_EP(4),
         .NUM_SEND_EP(4),
         .NUM_TRIGGERS(4)
@@ -541,7 +541,7 @@ icosoc_v["30-raspif"].append("""
         .RASPI_36(RASPI_36),
         .RASPI_38(RASPI_38),
         .RASPI_40(RASPI_40)
-    );
+    );*/
 
     // -------------------------------
     // Transmission test (recv ep0, send ep0)
@@ -993,101 +993,101 @@ iowires.add("SPI_FLASH_SCLK")
 iowires.add("SPI_FLASH_MOSI")
 iowires.add("SPI_FLASH_MISO")
 
-icosoc_v["15-moddecl"].append("    // RasPi Interface: 9 Data Lines (cmds have MSB set)")
-icosoc_v["15-moddecl"].append("    inout RASPI_11, RASPI_12, RASPI_15, RASPI_16, RASPI_19, RASPI_21, RASPI_26, RASPI_35, RASPI_36,")
-icosoc_v["15-moddecl"].append("")
-icosoc_v["15-moddecl"].append("    // RasPi Interface: Control Lines")
-icosoc_v["15-moddecl"].append("    input RASPI_38, RASPI_40,")
-icosoc_v["15-moddecl"].append("")
+#icosoc_v["15-moddecl"].append("    // RasPi Interface: 9 Data Lines (cmds have MSB set)")
+#icosoc_v["15-moddecl"].append("    inout RASPI_11, RASPI_12, RASPI_15, RASPI_16, RASPI_19, RASPI_21, RASPI_26, RASPI_35, RASPI_36,")
+#icosoc_v["15-moddecl"].append("")
+#icosoc_v["15-moddecl"].append("    // RasPi Interface: Control Lines")
+#icosoc_v["15-moddecl"].append("    input RASPI_38, RASPI_40,")
+#icosoc_v["15-moddecl"].append("")
 
-iowires |= set("RASPI_11 RASPI_12 RASPI_15 RASPI_16 RASPI_19 RASPI_21 RASPI_26 RASPI_35 RASPI_36 RASPI_38 RASPI_40".split())
+#iowires |= set("RASPI_11 RASPI_12 RASPI_15 RASPI_16 RASPI_19 RASPI_21 RASPI_26 RASPI_35 RASPI_36 RASPI_38 RASPI_40".split())
 
 icosoc_v["15-moddecl"].append("    // SRAM and HRAM Interface")
 icosoc_v["15-moddecl"].append("    output SRAM_A0, SRAM_A1, SRAM_A2, SRAM_A3, SRAM_A4, SRAM_A5, SRAM_A6, SRAM_A7,")
 icosoc_v["15-moddecl"].append("    output SRAM_A8, SRAM_A9, SRAM_A10, SRAM_A11, SRAM_A12, SRAM_A13, SRAM_A14, SRAM_A15,")
-icosoc_v["15-moddecl"].append("    output SRAM_A16, SRAM_A17, SRAM_A18,")
+icosoc_v["15-moddecl"].append("    output SRAM_A16, SRAM_A17,")
 
 icosoc_v["15-moddecl"].append("    inout SRAM_D0, SRAM_D1, SRAM_D2, SRAM_D3, SRAM_D4, SRAM_D5, SRAM_D6, SRAM_D7,")
 icosoc_v["15-moddecl"].append("    inout SRAM_D8, SRAM_D9, SRAM_D10, SRAM_D11, SRAM_D12, SRAM_D13, SRAM_D14, SRAM_D15,")
-icosoc_v["15-moddecl"].append("    output SRAM_CE, SRAM_WE, SRAM_OE, SRAM_LB, SRAM_UB, HRAM_CK")
+icosoc_v["15-moddecl"].append("    output SRAM_CE, SRAM_WE, SRAM_OE, SRAM_LB, SRAM_UB")
 icosoc_v["15-moddecl"].append(");")
 
 iowires |= set("SRAM_A0 SRAM_A1 SRAM_A2 SRAM_A3 SRAM_A4 SRAM_A5 SRAM_A6 SRAM_A7".split())
 iowires |= set("SRAM_A8 SRAM_A9 SRAM_A10 SRAM_A11 SRAM_A12 SRAM_A13 SRAM_A14 SRAM_A15".split())
 iowires |= set("SRAM_D0 SRAM_D1 SRAM_D2 SRAM_D3 SRAM_D4 SRAM_D5 SRAM_D6 SRAM_D7".split())
 iowires |= set("SRAM_D8 SRAM_D9 SRAM_D10 SRAM_D11 SRAM_D12 SRAM_D13 SRAM_D14 SRAM_D15".split())
-iowires |= set("SRAM_CE SRAM_WE SRAM_OE SRAM_LB SRAM_UB HRAM_CK".split())
+iowires |= set("SRAM_CE SRAM_WE SRAM_OE SRAM_LB SRAM_UB".split())
 
 icosoc_v["95-endmod"].append("endmodule")
 
 icosoc_pcf["10-std"].append("""
-set_io CLKIN R9
+set_io CLKIN 129
 
-set_io LED1 C8
-set_io LED2 F7
-set_io LED3 K9
+set_io LED1 70
+set_io LED2 67
+set_io LED3 68
 
-set_io SPI_FLASH_CS   R12
-set_io SPI_FLASH_SCLK R11
-set_io SPI_FLASH_MOSI P12
-set_io SPI_FLASH_MISO P11
+set_io SPI_FLASH_CS   81
+set_io SPI_FLASH_SCLK 82
+set_io SPI_FLASH_MOSI 83
+set_io SPI_FLASH_MISO 84
 
-set_io RASPI_11 D5
-set_io RASPI_12 D6
-set_io RASPI_15 C6
-set_io RASPI_16 C7
-set_io RASPI_19 A6
-set_io RASPI_21 A7
-set_io RASPI_26 D4
-set_io RASPI_35 D7
-set_io RASPI_36 D9
-set_io RASPI_38 C9
-set_io RASPI_40 C10
+#set_io RASPI_11 D5
+#set_io RASPI_12 D6
+#set_io RASPI_15 C6
+#set_io RASPI_16 C7
+#set_io RASPI_19 A6
+#set_io RASPI_21 A7
+#set_io RASPI_26 D4
+#set_io RASPI_35 D7
+#set_io RASPI_36 D9
+#set_io RASPI_38 C9
+#set_io RASPI_40 C10
 
-set_io SRAM_A0  N2
-set_io SRAM_A1  K5
-set_io SRAM_A2  J5
-set_io SRAM_A3  M5
-set_io SRAM_A4  P4
-set_io SRAM_A5  N5
-set_io SRAM_A6  P5
-set_io SRAM_A7  P7
-set_io SRAM_A8  M6
-set_io SRAM_A9  P6
-set_io SRAM_A10 T8
-set_io SRAM_A11 T1
-set_io SRAM_A12 P2
-set_io SRAM_A13 R1
-set_io SRAM_A14 N3
-set_io SRAM_A15 P1
-set_io SRAM_A16 M11
-set_io SRAM_A17 P10
-set_io SRAM_A18 P8
+set_io SRAM_A0  137
+set_io SRAM_A1  138
+set_io SRAM_A2  139
+set_io SRAM_A3  141
+set_io SRAM_A4  142
+set_io SRAM_A5  42
+set_io SRAM_A6  43
+set_io SRAM_A7  44
+set_io SRAM_A8  73
+set_io SRAM_A9  74
+set_io SRAM_A10 75
+set_io SRAM_A11 76
+set_io SRAM_A12 115
+set_io SRAM_A13 116
+set_io SRAM_A14 117
+set_io SRAM_A15 118
+set_io SRAM_A16 119
+set_io SRAM_A17 78
+#set_io SRAM_A18 P8
 
-set_io SRAM_D0  T2
-set_io SRAM_D1  R3
-set_io SRAM_D2  T3
-set_io SRAM_D3  R4
-set_io SRAM_D4  R5
-set_io SRAM_D5  T5
-set_io SRAM_D6  R6
-set_io SRAM_D7  T6
-set_io SRAM_D8  N4
-set_io SRAM_D9  M4
-set_io SRAM_D10 L6
-set_io SRAM_D11 M3
-set_io SRAM_D12 L4
-set_io SRAM_D13 L3
-set_io SRAM_D14 K4
-set_io SRAM_D15 K3
+set_io SRAM_D0  136
+set_io SRAM_D1  135
+set_io SRAM_D2  134
+set_io SRAM_D3  130
+set_io SRAM_D4  125
+set_io SRAM_D5  124
+set_io SRAM_D6  122
+set_io SRAM_D7  121
+set_io SRAM_D8  62
+set_io SRAM_D9  61
+set_io SRAM_D10 60
+set_io SRAM_D11 56
+set_io SRAM_D12 55
+set_io SRAM_D13 48
+set_io SRAM_D14 47
+set_io SRAM_D15 45
 
-set_io SRAM_CE  M7
-set_io SRAM_WE  T7
-set_io SRAM_OE  L5
-set_io SRAM_LB  J4
-set_io SRAM_UB  J3
+set_io SRAM_CE  23
+set_io SRAM_WE  120
+set_io SRAM_OE  29
+set_io SRAM_LB  24
+set_io SRAM_UB  28
 
-set_io HRAM_CK   N10
+#set_io HRAM_CK   N10
 # set_io HRAM_RWDS P8  # SRAM_A18
 # set_io HRAM_DQ0  T2  # SRAM_D0
 # set_io HRAM_DQ1  R3  # SRAM_D1
@@ -1209,7 +1209,7 @@ icosoc_mk["50-synthesis"].append("\tyosys -l icosoc.log -v3 icosoc.ys")
 
 icosoc_mk["50-synthesis"].append("icosoc.asc: icosoc.blif icosoc.pcf")
 icosoc_mk["50-synthesis"].append("\tset -x; for seed in 1234 2345 3456 4567 5678 6789 7890; do \\")
-icosoc_mk["50-synthesis"].append("\t\tarachne-pnr -s $$seed -d 8k -p icosoc.pcf -o icosoc.new_asc icosoc.blif && \\")
+icosoc_mk["50-synthesis"].append("\t\tarachne-pnr -s $$seed -d 8k -P tq144:4k -p icosoc.pcf -o icosoc.new_asc icosoc.blif && \\")
 icosoc_mk["50-synthesis"].append("\t\ticetime -c 20 -d hx8k -tr icosoc.rpt icosoc.new_asc && exit 0; \\")
 icosoc_mk["50-synthesis"].append("\tdone; false")
 icosoc_mk["50-synthesis"].append("\tmv icosoc.new_asc icosoc.asc")
