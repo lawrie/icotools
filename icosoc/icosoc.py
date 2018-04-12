@@ -33,10 +33,6 @@ modvlog = set()
 
 enable_compressed_isa = False
 enable_muldiv_isa = False
-enable_flashmem = False
-enable_flashpmem = False
-enable_noflashboot = False
-enable_fastflashboot = False
 
 debug_depth = 256
 debug_trigat = 0
@@ -108,10 +104,6 @@ setboard("icoboard")
 def parse_cfg(f):
     global enable_compressed_isa
     global enable_muldiv_isa
-    global enable_flashmem
-    global enable_flashpmem
-    global enable_noflashboot
-    global enable_fastflashboot
     global debug_code_append
 
     current_mod_name = None
@@ -157,31 +149,6 @@ def parse_cfg(f):
             assert len(line) == 1
             assert current_mod_name is None
             enable_muldiv_isa = True
-            continue
-
-        if line[0] == "flashmem":
-            assert len(line) == 1
-            assert current_mod_name is None
-            enable_flashmem = True
-            continue
-
-        if line[0] == "flashpmem":
-            assert len(line) == 1
-            assert current_mod_name is None
-            enable_flashmem = True
-            enable_flashpmem = True
-            continue
-
-        if line[0] == "noflashboot":
-            assert len(line) == 1
-            assert current_mod_name is None
-            enable_noflashboot = True
-            continue
-
-        if line[0] == "fastflashboot":
-            assert len(line) == 1
-            assert current_mod_name is None
-            enable_fastflashboot = True
             continue
 
         if line[0] == "debug_net":
@@ -396,11 +363,11 @@ icosoc_v["20-clockgen"].append("""
 
 icosoc_v["30-sramif"].append("""
     // -------------------------------
-    // SRAM/HRAM Interface
+    // SRAM Interface
 
     reg [1:0] sram_state;
     reg sram_wrlb, sram_wrub;
-    reg [18:0] sram_addr;
+    reg [17:0] sram_addr;
     reg [15:0] sram_dout;
     wire [15:0] sram_din;
 
@@ -425,130 +392,6 @@ icosoc_v["30-sramif"].append("""
     assign SRAM_OE = (sram_wrlb || sram_wrub);
     assign SRAM_LB = (sram_wrlb || sram_wrub) ? !sram_wrlb : 0;
     assign SRAM_UB = (sram_wrlb || sram_wrub) ? !sram_wrub : 0;
-    //assign HRAM_CK = 0;
-""")
-
-icosoc_v["30-raspif"].append("""
-    // -------------------------------
-    // RasPi Interface
-
-    wire recv_sync;
-
-    // recv ep0: transmission test
-    wire recv_ep0_valid;
-    wire recv_ep0_ready;
-    wire [7:0] recv_ep0_data;
-
-    // recv ep1: unused
-    wire recv_ep1_valid;
-    wire recv_ep1_ready = 1;
-    wire [7:0] recv_ep1_data = recv_ep0_data;
-
-    // recv ep2: console input
-    wire recv_ep2_valid;
-    reg  recv_ep2_ready;
-    wire [7:0] recv_ep2_data = recv_ep0_data;
-
-    // recv ep3: unused
-    wire recv_ep3_valid;
-    wire recv_ep3_ready = 1;
-    wire [7:0] recv_ep3_data = recv_ep0_data;
-
-    // send ep0: transmission test
-    wire send_ep0_valid;
-    wire send_ep0_ready;
-    wire [7:0] send_ep0_data;
-
-    // send ep1: debugger
-    wire send_ep1_valid;
-    wire send_ep1_ready;
-    wire [7:0] send_ep1_data;
-
-    // send ep2: console output
-    reg  send_ep2_valid;
-    wire send_ep2_ready;
-    reg  [7:0] send_ep2_data;
-
-    // send ep3: unused
-    wire send_ep3_valid = 0;
-    wire send_ep3_ready;
-    wire [7:0] send_ep3_data = 'bx;
-
-    // trigger lines
-    wire trigger_0;  // unused
-    wire trigger_1;  // debugger
-    wire trigger_2;  // unused
-    wire trigger_3;  // unused
-
-    /*icosoc_raspif #(
-        .NUM_RECV_EP(4),
-        .NUM_SEND_EP(4),
-        .NUM_TRIGGERS(4)
-    ) raspi_interface (
-        .clk(clk),
-        .sync(recv_sync),
-
-        .recv_valid({
-            recv_ep3_valid,
-            recv_ep2_valid,
-            recv_ep1_valid,
-            recv_ep0_valid
-        }),
-        .recv_ready({
-            recv_ep3_ready,
-            recv_ep2_ready,
-            recv_ep1_ready,
-            recv_ep0_ready
-        }),
-        .recv_tdata(
-            recv_ep0_data
-        ),
-
-        .send_valid({
-            send_ep3_valid,
-            send_ep2_valid,
-            send_ep1_valid,
-            send_ep0_valid
-        }),
-        .send_ready({
-            send_ep3_ready,
-            send_ep2_ready,
-            send_ep1_ready,
-            send_ep0_ready
-        }),
-        .send_tdata(
-            (send_ep3_data & {8{send_ep3_valid && send_ep3_ready}}) |
-            (send_ep2_data & {8{send_ep2_valid && send_ep2_ready}}) |
-            (send_ep1_data & {8{send_ep1_valid && send_ep1_ready}}) |
-            (send_ep0_data & {8{send_ep0_valid && send_ep0_ready}})
-        ),
-
-        .trigger({
-            trigger_3,
-            trigger_2,
-            trigger_1,
-            trigger_0
-        }),
-
-        .RASPI_11(RASPI_11),
-        .RASPI_12(RASPI_12),
-        .RASPI_15(RASPI_15),
-        .RASPI_16(RASPI_16),
-        .RASPI_19(RASPI_19),
-        .RASPI_21(RASPI_21),
-        .RASPI_26(RASPI_26),
-        .RASPI_35(RASPI_35),
-        .RASPI_36(RASPI_36),
-        .RASPI_38(RASPI_38),
-        .RASPI_40(RASPI_40)
-    );*/
-
-    // -------------------------------
-    // Transmission test (recv ep0, send ep0)
-
-    assign send_ep0_data = ((recv_ep0_data << 5) + recv_ep0_data) ^ 7;
-    assign send_ep0_valid = recv_ep0_valid;
-    assign recv_ep0_ready = send_ep0_ready;
 """)
 
 icosoc_v["40-cpu"].append("""
@@ -739,74 +582,6 @@ else: # no debug signals
     assign send_ep1_data = 'bx;
 """);
 
-if enable_flashmem:
-    flashmem_condition = "((mem_addr & 32'hC000_0000) == 32'h4000_0000)"
-    if enable_flashpmem:
-        flashmem_condition += " || (!mem_addr[31:28] && mem_addr[27:20])"
-
-    icosoc_v["68-flashmem"].append("""
-    // -------------------------------
-    // Flashmem and SPI Flash Interface
-
-    wire [23:0] flashmem_addr = mem_addr;
-    wire [31:0] flashmem_rdata;
-    wire flashmem_cond = <flashmem_condition>;
-    wire flashmem_valid = mem_valid && !mem_ready && flashmem_cond;
-    wire flashmem_ready;
-
-    wire flashmem_cs;
-    wire flashmem_sclk;
-    wire flashmem_mosi;
-    wire flashmem_miso;
-
-    reg spiflash_cs;
-    reg spiflash_sclk;
-    reg spiflash_mosi;
-    wire spiflash_miso;
-
-    reg [7:0] spiflash_data;
-    reg [3:0] spiflash_state;
-
-    assign SPI_FLASH_CS = flashmem_cs & spiflash_cs;
-    assign SPI_FLASH_SCLK = !flashmem_cs ? flashmem_sclk : spiflash_sclk;
-    assign SPI_FLASH_MOSI = !flashmem_cs ? flashmem_mosi : spiflash_mosi;
-    assign flashmem_miso = SPI_FLASH_MISO, spiflash_miso = SPI_FLASH_MISO;
-
-    icosoc_flashmem flashmem (
-        .clk(clk),
-        .resetn(resetn),
-        .valid(flashmem_valid),
-        .ready(flashmem_ready),
-        .addr(flashmem_addr),
-        .rdata(flashmem_rdata),
-        .spi_cs(flashmem_cs),
-        .spi_sclk(flashmem_sclk),
-        .spi_mosi(flashmem_mosi),
-        .spi_miso(flashmem_miso)
-    );
-""".replace("<flashmem_condition>", flashmem_condition))
-
-else:
-    icosoc_v["68-flashmem"].append("""
-    // -------------------------------
-    // SPI Flash Interface
-
-    reg spiflash_cs;
-    reg spiflash_sclk;
-    reg spiflash_mosi;
-    wire spiflash_miso;
-
-    reg [7:0] spiflash_data;
-    reg [3:0] spiflash_state;
-
-    assign SPI_FLASH_CS = spiflash_cs;
-    assign SPI_FLASH_SCLK = spiflash_sclk;
-    assign SPI_FLASH_MOSI = spiflash_mosi;
-    assign spiflash_miso = SPI_FLASH_MISO;
-
-    wire flashmem_cond = 0;
-""")
-
 icosoc_v["70-bus"].append("""
     // -------------------------------
     // Memory/IO Interface
@@ -860,7 +635,7 @@ icosoc_v["72-bus"].append("""
                     end
                     mem_ready <= 1;
                 end
-                (mem_addr & 32'hF000_0000) == 32'h0000_0000 && (mem_addr >> 2) >= BOOT_MEM_SIZE && !flashmem_cond: begin
+                (mem_addr & 32'hF000_0000) == 32'h0000_0000 && (mem_addr >> 2) >= BOOT_MEM_SIZE: begin
                     if (mem_wstrb) begin
                         (* parallel_case, full_case *)
                         case (sram_state)
@@ -959,14 +734,6 @@ icosoc_v["76-bus"].append("""
                 end
 """)
 
-if enable_flashmem:
-    icosoc_v["77-bus"].append("""
-                flashmem_cond: begin
-                    mem_rdata <= flashmem_rdata;
-                    mem_ready <= flashmem_ready;
-                end
-""")
-
 icosoc_v["78-bus"].append("""
             endcase
         end
@@ -982,27 +749,7 @@ iowires |= set("CLKIN LED1 LED2 LED3".split())
 
 icosoc_v["12-iopins"].append("")
 
-icosoc_v["15-moddecl"].append("    output SPI_FLASH_CS,")
-icosoc_v["15-moddecl"].append("    output SPI_FLASH_SCLK,")
-icosoc_v["15-moddecl"].append("    output SPI_FLASH_MOSI,")
-icosoc_v["15-moddecl"].append("    input  SPI_FLASH_MISO,")
-icosoc_v["15-moddecl"].append("")
-
-iowires.add("SPI_FLASH_CS")
-iowires.add("SPI_FLASH_SCLK")
-iowires.add("SPI_FLASH_MOSI")
-iowires.add("SPI_FLASH_MISO")
-
-#icosoc_v["15-moddecl"].append("    // RasPi Interface: 9 Data Lines (cmds have MSB set)")
-#icosoc_v["15-moddecl"].append("    inout RASPI_11, RASPI_12, RASPI_15, RASPI_16, RASPI_19, RASPI_21, RASPI_26, RASPI_35, RASPI_36,")
-#icosoc_v["15-moddecl"].append("")
-#icosoc_v["15-moddecl"].append("    // RasPi Interface: Control Lines")
-#icosoc_v["15-moddecl"].append("    input RASPI_38, RASPI_40,")
-#icosoc_v["15-moddecl"].append("")
-
-#iowires |= set("RASPI_11 RASPI_12 RASPI_15 RASPI_16 RASPI_19 RASPI_21 RASPI_26 RASPI_35 RASPI_36 RASPI_38 RASPI_40".split())
-
-icosoc_v["15-moddecl"].append("    // SRAM and HRAM Interface")
+icosoc_v["15-moddecl"].append("    // SRAM Interface")
 icosoc_v["15-moddecl"].append("    output SRAM_A0, SRAM_A1, SRAM_A2, SRAM_A3, SRAM_A4, SRAM_A5, SRAM_A6, SRAM_A7,")
 icosoc_v["15-moddecl"].append("    output SRAM_A8, SRAM_A9, SRAM_A10, SRAM_A11, SRAM_A12, SRAM_A13, SRAM_A14, SRAM_A15,")
 icosoc_v["15-moddecl"].append("    output SRAM_A16, SRAM_A17,")
@@ -1026,23 +773,6 @@ set_io CLKIN 129
 set_io LED1 70
 set_io LED2 67
 set_io LED3 68
-
-set_io SPI_FLASH_CS   81
-set_io SPI_FLASH_SCLK 82
-set_io SPI_FLASH_MOSI 83
-set_io SPI_FLASH_MISO 84
-
-#set_io RASPI_11 D5
-#set_io RASPI_12 D6
-#set_io RASPI_15 C6
-#set_io RASPI_16 C7
-#set_io RASPI_19 A6
-#set_io RASPI_21 A7
-#set_io RASPI_26 D4
-#set_io RASPI_35 D7
-#set_io RASPI_36 D9
-#set_io RASPI_38 C9
-#set_io RASPI_40 C10
 
 set_io SRAM_A0  137
 set_io SRAM_A1  138
@@ -1087,17 +817,6 @@ set_io SRAM_OE  29
 set_io SRAM_LB  24
 set_io SRAM_UB  28
 
-#set_io HRAM_CK   N10
-# set_io HRAM_RWDS P8  # SRAM_A18
-# set_io HRAM_DQ0  T2  # SRAM_D0
-# set_io HRAM_DQ1  R3  # SRAM_D1
-# set_io HRAM_DQ2  T3  # SRAM_D2
-# set_io HRAM_DQ3  R4  # SRAM_D3
-# set_io HRAM_DQ4  R5  # SRAM_D4
-# set_io HRAM_DQ5  T5  # SRAM_D5
-# set_io HRAM_DQ6  R6  # SRAM_D6
-# set_io HRAM_DQ7  T6  # SRAM_D7
-# set_io HRAM_CS2n P10 # SRAM_A17
 """)
 
 icosoc_mk["10-top"].append("")
@@ -1106,10 +825,7 @@ icosoc_mk["10-top"].append("ICOSOC_ROOT ?= %s" % basedir)
 icosoc_mk["10-top"].append("RISCV_TOOLS_PREFIX ?= /opt/riscv32i%s%s/bin/riscv32-unknown-elf-" %
         ("m" if enable_muldiv_isa else "", "c" if enable_compressed_isa else ""))
 
-if enable_flashpmem:
-    icosoc_mk["10-top"].append("LDSCRIPT ?= %s/common/riscv_flash.ld" % basedir)
-else:
-    icosoc_mk["10-top"].append("LDSCRIPT ?= %s/common/riscv_orig.ld" % basedir)
+icosoc_mk["10-top"].append("LDSCRIPT ?= %s/common/riscv_orig.ld" % basedir)
 
 icosoc_mk["10-top"].append("")
 icosoc_mk["10-top"].append("ifeq ($(shell bash -c 'type -p icoprog'),)")
@@ -1200,8 +916,6 @@ icosoc_ys["10-readvlog"].append("read_verilog -D ICOSOC icosoc.v")
 icosoc_ys["10-readvlog"].append("read_verilog -D ICOSOC %s/common/picorv32.v" % basedir)
 icosoc_ys["10-readvlog"].append("read_verilog -D ICOSOC %s/common/icosoc_crossclkfifo.v" % basedir)
 icosoc_ys["10-readvlog"].append("read_verilog -D ICOSOC %s/common/icosoc_debugger.v" % basedir)
-icosoc_ys["10-readvlog"].append("read_verilog -D ICOSOC %s/common/icosoc_flashmem.v" % basedir)
-icosoc_ys["10-readvlog"].append("read_verilog -D ICOSOC %s/common/icosoc_raspif.v" % basedir)
 icosoc_ys["50-synthesis"].append("synth_ice40 -top icosoc -blif icosoc.blif")
 
 icosoc_mk["50-synthesis"].append("icosoc.blif: icosoc.v icosoc.ys firmware_seed.hex")
@@ -1224,8 +938,6 @@ tbfiles.add("testbench.v")
 tbfiles.add("%s/common/picorv32.v" % basedir)
 tbfiles.add("%s/common/icosoc_crossclkfifo.v" % basedir)
 tbfiles.add("%s/common/icosoc_debugger.v" % basedir)
-tbfiles.add("%s/common/icosoc_flashmem.v" % basedir)
-tbfiles.add("%s/common/icosoc_raspif.v" % basedir)
 tbfiles.add("%s/common/sim_sram.v" % basedir)
 tbfiles.add("%s/common/sim_spiflash.v" % basedir)
 tbfiles |= modvlog
@@ -1242,10 +954,7 @@ icosoc_mk["60-simulation"].append("\tvvp -N testbench")
 if not opt.custom_firmware:
     icosoc_mk["70-firmware"].append("firmware.elf: %s/common/firmware.S %s/common/firmware.c %s/common/firmware.lds icosoc.cfg" % (basedir, basedir, basedir))
     icosoc_mk["70-firmware"].append(("\t$(RISCV_TOOLS_PREFIX)gcc -Os %s%s%s-march=rv32i -ffreestanding " +
-            "-nostdlib -Wall -o firmware.elf %s/common/firmware.S %s/common/firmware.c \\") % (
-            "-DFLASHPMEM " if enable_flashpmem else "",
-            "-DNOFLASHBOOT " if enable_noflashboot else "",
-            "-DFASTFLASHBOOT " if enable_fastflashboot else "",
+            "-nostdlib -Wall -o firmware.elf %s/common/firmware.S %s/common/firmware.c \\") % ("", "", "",
             basedir, basedir))
     icosoc_mk["70-firmware"].append("\t\t\t--std=gnu99 -Wl,-Bstatic,-T,%s/common/firmware.lds,-Map,firmware.map,--strip-debug -lgcc" % basedir)
     icosoc_mk["70-firmware"].append("\tchmod -x firmware.elf")
@@ -1334,47 +1043,6 @@ testbench["30-inst"].append("")
 testbench["90-footer"].append("""
     assign CLKIN = clk;
 
-    wire [8:0] raspi_din;
-    reg [8:0] raspi_dout = 9'b z_zzzz_zzzz;
-    reg raspi_clk = 0;
-    reg raspi_dir = 0;
-
-    assign {RASPI_11, RASPI_12, RASPI_15, RASPI_16, RASPI_19, RASPI_21, RASPI_26, RASPI_35, RASPI_36} = raspi_dout;
-    assign raspi_din = {RASPI_11, RASPI_12, RASPI_15, RASPI_16, RASPI_19, RASPI_21, RASPI_26, RASPI_35, RASPI_36};
-    assign RASPI_40 = raspi_clk, RASPI_38 = raspi_dir;
-
-    task raspi_send_word(input [8:0] data);
-        begin
-            raspi_clk <= 0;
-            raspi_dir <= 1;
-            raspi_dout <= {1'b0, data};
-
-            repeat (5) @(posedge clk);
-            raspi_clk <= 1;
-            repeat (10) @(posedge clk);
-            raspi_clk <= 0;
-            repeat (5) @(posedge clk);
-        end
-    endtask
-
-    task raspi_recv_word(output [8:0] data);
-        begin
-            raspi_clk <= 0;
-            raspi_dir <= 0;
-            raspi_dout <= 9'b z_zzzz_zzzz;
-
-            repeat (5) @(posedge clk);
-            raspi_clk <= 1;
-            repeat (10) @(posedge clk);
-            data = raspi_din;
-            raspi_clk <= 0;
-            repeat (5) @(posedge clk);
-        end
-    endtask
-
-    reg [7:0] raspi_current_ep;
-    reg [8:0] raspi_current_word;
-
     event appimage_ready;
 
     initial begin
@@ -1387,13 +1055,13 @@ testbench["90-footer"].append("""
 
         $display("-- Printing console messages --");
         forever begin
-            raspi_recv_word(raspi_current_word);
+            /*raspi_recv_word(raspi_current_word);
             if (raspi_current_word[8]) begin
                 raspi_current_ep = raspi_current_word[7:0];
             end else if (raspi_current_ep == 2) begin
                 $write("%c", raspi_current_word[7:0]);
                 $fflush();
-            end
+            end*/
         end
     end
 
