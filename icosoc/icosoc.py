@@ -55,7 +55,7 @@ def setboard(boardname):
 
     board = boardname
 
-    if boardname == "icoboard":
+    if boardname == "blackice2":
         pmod_locs = [
             "94 91 88 85 95 93 90 87".split(),
             "105 102 99 97 104 101 98 96".split(),
@@ -99,7 +99,7 @@ def make_pins(pname):
     icosoc_pcf["12-iopins"].append("set_io %s %s" % (pname, ploc))
     return [ pname ]
 
-setboard("icoboard")
+setboard("blackice2")
 
 def parse_cfg(f):
     global enable_compressed_isa
@@ -394,6 +394,89 @@ icosoc_v["30-sramif"].append("""
     assign SRAM_UB = (sram_wrlb || sram_wrub) ? !sram_wrub : 0;
 """)
 
+icosoc_v["30-raspif"].append("""
+    // -------------------------------
+    // RasPi Interface
+    wire recv_sync;
+    // recv ep0: transmission test
+    wire recv_ep0_valid;
+    wire recv_ep0_ready;
+    wire [7:0] recv_ep0_data = 0;
+    // recv ep1: unused
+    wire recv_ep1_valid;
+    wire recv_ep1_ready = 1;
+    wire [7:0] recv_ep1_data = recv_ep0_data;
+
+    // recv ep2: console input
+    wire recv_ep2_valid = 0;
+    reg  recv_ep2_ready;
+    wire [7:0] recv_ep2_data = recv_ep0_data;
+    // recv ep3: unused
+    wire recv_ep3_valid;
+    wire recv_ep3_ready = 1;
+    wire [7:0] recv_ep3_data = recv_ep0_data;
+    // send ep0: transmission test
+    wire send_ep0_valid;
+    wire send_ep0_ready = 0;
+    wire [7:0] send_ep0_data;
+    // send ep1: debugger
+    wire send_ep1_valid;
+    wire send_ep1_ready = 0;
+    wire [7:0] send_ep1_data;
+    // send ep2: console output
+    reg  send_ep2_valid;
+    wire send_ep2_ready = 0;
+    reg  [7:0] send_ep2_data;
+    // send ep3: unused
+    wire send_ep3_valid = 0;
+    wire send_ep3_ready;
+    wire [7:0] send_ep3_data = 'bx;
+    // trigger lines
+    wire trigger_0;  // unused
+    wire trigger_1 = 0;  // debugger
+    wire trigger_2;  // unused
+    wire trigger_3;  // unused
+
+    wire tx_req;
+    wire tx_ready;
+    wire [7:0] tx_data;
+
+    wire rx_req;
+    wire rx_ready;
+    wire [7:0] rx_data;
+
+    wire reset_;
+
+    sync_reset u_sync_reset(
+        .clk(clk),
+        .reset_in_(!GRESET),
+        .reset_out_(reset_)
+    );
+
+    uart_rx #(.BAUD(115200)) u_uart_rx (
+        .clk (clk),
+        .reset_(reset_),
+        .rx_req(rx_req),
+        .rx_ready(rx_ready),
+        .rx_data(rx_data),
+        .uart_rx(RX)
+    );
+
+    // The uart_tx baud rate is slightly higher than 115200.
+    // This is to avoid dropping bytes when the PC sends data at a rate that's a bit faster
+    // than 115200. 
+    // In a normal design, one typically wouldn't use immediate loopback, so 115200 would be the 
+    // right value.
+    uart_tx #(.BAUD(116000)) u_uart_tx (
+        .clk (clk),
+        .reset_(reset_),
+        .tx_req(tx_req),
+        .tx_ready(tx_ready),
+        .tx_data(tx_data),
+        .uart_tx(TX)
+    );
+""")
+
 icosoc_v["40-cpu"].append("""
     // -------------------------------
     // PicoRV32 Core
@@ -582,6 +665,18 @@ else: # no debug signals
     assign send_ep1_data = 'bx;
 """);
 
+icosoc_v["68-flashmem"].append("""
+    // -------------------------------
+    // SPI Flash Interface
+    reg spiflash_cs;
+    reg spiflash_sclk;
+    reg spiflash_mosi;
+    wire spiflash_miso = 0;
+    reg [7:0] spiflash_data;
+    reg [3:0] spiflash_state;
+    wire flashmem_cond = 0;
+""")
+
 icosoc_v["70-bus"].append("""
     // -------------------------------
     // Memory/IO Interface
@@ -607,12 +702,20 @@ icosoc_v["72-bus"].append("""
         if (send_ep2_ready)
             send_ep2_valid <= 0;
 
-        recv_ep2_ready <= 0;
+        if (tx_ready)
+            tx_req <= 0;
+
+        rx_ready <= 0;
+       
+	LED4 <= 1;
+        LED1 <= 0;
+        LED2 <= 0;
 
         if (!resetn) begin
             LED1 <= 0;
             LED2 <= 0;
             LED3 <= 0;
+            LED4 <= 0;
 
             spiflash_cs   <= 1;
             spiflash_sclk <= 1;
@@ -717,15 +820,17 @@ icosoc_v["76-bus"].append("""
                 end
                 (mem_addr & 32'hF000_0000) == 32'h3000_0000: begin
                     if (mem_wstrb) begin
-                        if (send_ep2_ready || !send_ep2_valid) begin
-                            send_ep2_valid <= 1;
-                            send_ep2_data <= mem_wdata;
+                        LED3 <= 1;
+                        if (tx_ready || !tx_req) begin
+                            tx_req <= 1;
+                            tx_data <= mem_wdata;
                             mem_ready <= 1;
                         end
                     end else begin
-                        if (recv_ep2_valid && !recv_ep2_ready) begin
-                            recv_ep2_ready <= 1;
-                            mem_rdata <= recv_ep2_data;
+                        if (rx_req && !rx_ready) begin
+                            rx_ready <= 1;
+                            LED2 <= 1;
+                            mem_rdata <= rx_data;
                         end else begin
                             mem_rdata <= ~0;
                         end
@@ -741,11 +846,11 @@ icosoc_v["78-bus"].append("""
 """)
 
 icosoc_v["10-moddecl"].append("module icosoc (")
-icosoc_v["10-moddecl"].append("    input CLKIN,")
-icosoc_v["10-moddecl"].append("    output reg LED1, LED2, LED3,")
+icosoc_v["10-moddecl"].append("    input CLKIN, GRESET, RX,")
+icosoc_v["10-moddecl"].append("    output reg LED1, LED2, LED3, LED4, TX,")
 icosoc_v["10-moddecl"].append("")
 
-iowires |= set("CLKIN LED1 LED2 LED3".split())
+iowires |= set("CLKIN GRESET RX TX LED1 LED2 LED3 LED4".split())
 
 icosoc_v["12-iopins"].append("")
 
@@ -769,10 +874,15 @@ icosoc_v["95-endmod"].append("endmodule")
 
 icosoc_pcf["10-std"].append("""
 set_io CLKIN 129
+set_io GRESET 128
 
 set_io LED1 70
 set_io LED2 67
 set_io LED3 68
+set_io LED4 71
+
+set_io RX 88
+set_io TX 85
 
 set_io SRAM_A0  137
 set_io SRAM_A1  138
@@ -828,12 +938,6 @@ icosoc_mk["10-top"].append("RISCV_TOOLS_PREFIX ?= /opt/riscv32i%s%s/bin/riscv32-
 icosoc_mk["10-top"].append("LDSCRIPT ?= %s/common/riscv_orig.ld" % basedir)
 
 icosoc_mk["10-top"].append("")
-icosoc_mk["10-top"].append("ifeq ($(shell bash -c 'type -p icoprog'),)")
-icosoc_mk["10-top"].append("SSH_RASPI ?= ssh pi@raspi")
-icosoc_mk["10-top"].append("else")
-icosoc_mk["10-top"].append("SSH_RASPI ?= sh -c")
-icosoc_mk["10-top"].append("endif")
-icosoc_mk["10-top"].append("")
 icosoc_mk["10-top"].append("help:")
 icosoc_mk["10-top"].append("\t@echo \"\"")
 icosoc_mk["10-top"].append("\t@echo \"Building FPGA bitstream and program:\"")
@@ -869,52 +973,27 @@ icosoc_mk["10-top"].append("\t@echo \"   make testbench_novcd\"")
 icosoc_mk["10-top"].append("\t@echo \"\"")
 icosoc_mk["10-top"].append("")
 icosoc_mk["10-top"].append("prog_sram: icosoc.bin")
-icosoc_mk["10-top"].append("\t$(SSH_RASPI) 'killall -9 icoprog || true'")
-icosoc_mk["10-top"].append("\t$(SSH_RASPI) 'icoprog -p' < icosoc.bin")
-icosoc_mk["10-top"].append("")
-icosoc_mk["10-top"].append("prog_flash: icosoc.bin appimage.hex")
-icosoc_mk["10-top"].append("\tpython3 %s/common/flashbin.py" % basedir)
-icosoc_mk["10-top"].append("\t$(SSH_RASPI) 'killall -9 icoprog || true'")
-icosoc_mk["10-top"].append("\t$(SSH_RASPI) 'icoprog -f' < icosoc.bin")
-icosoc_mk["10-top"].append("\t$(SSH_RASPI) 'icoprog -O8 -f' < appimage_lo.bin")
-icosoc_mk["10-top"].append("\t$(SSH_RASPI) 'icoprog -O16 -f' < appimage_hi.bin")
-icosoc_mk["10-top"].append("")
-icosoc_mk["10-top"].append("reset_halt:")
-icosoc_mk["10-top"].append("\t$(SSH_RASPI) 'killall -9 icoprog || true'")
-icosoc_mk["10-top"].append("\t$(SSH_RASPI) 'icoprog -R'")
-icosoc_mk["10-top"].append("")
-icosoc_mk["10-top"].append("reset_flash:")
-icosoc_mk["10-top"].append("\t$(SSH_RASPI) 'killall -9 icoprog || true'")
-icosoc_mk["10-top"].append("\tdd if=/dev/zero bs=1K count=64 | $(SSH_RASPI) 'icoprog -f'")
-icosoc_mk["10-top"].append("")
-icosoc_mk["10-top"].append("reset_boot:")
-icosoc_mk["10-top"].append("\t$(SSH_RASPI) 'killall -9 icoprog || true'")
-icosoc_mk["10-top"].append("\t$(SSH_RASPI) 'icoprog -b'")
-icosoc_mk["10-top"].append("\t$(SSH_RASPI) 'icoprog -Zr2'")
+icosoc_mk["10-top"].append("\tcat icosoc.bin >/dev/ttyACM0")
 icosoc_mk["10-top"].append("")
 icosoc_mk["10-top"].append("run: icosoc.bin appimage.hex")
-icosoc_mk["10-top"].append("\t$(SSH_RASPI) 'killall -9 icoprog || true'")
-icosoc_mk["10-top"].append("\t$(SSH_RASPI) 'icoprog -p' < icosoc.bin")
-icosoc_mk["10-top"].append("\t$(SSH_RASPI) 'icoprog -zZc2' < appimage.hex")
+icosoc_mk["10-top"].append("\tcat icosoc.bin >/dev/ttyACM0")
 icosoc_mk["10-top"].append("")
 icosoc_mk["10-top"].append("softrun: appimage.hex")
-icosoc_mk["10-top"].append("\t$(SSH_RASPI) 'killall -9 icoprog || true'")
-icosoc_mk["10-top"].append("\t$(SSH_RASPI) 'icoprog -p' < icosoc.bin")
-icosoc_mk["10-top"].append("\t$(SSH_RASPI) 'icoprog -zZc2' < appimage.hex")
+icosoc_mk["10-top"].append("\tcat icosoc.bin >/dev/ttyACM0")
 icosoc_mk["10-top"].append("")
 icosoc_mk["10-top"].append("console:")
-icosoc_mk["10-top"].append("\t$(SSH_RASPI) 'killall -9 icoprog || true'")
-icosoc_mk["10-top"].append("\t$(SSH_RASPI) 'icoprog -c2'")
 icosoc_mk["10-top"].append("")
 icosoc_mk["10-top"].append("debug:")
 icosoc_mk["10-top"].append("\tgrep '// debug_.*->' icosoc.v")
-icosoc_mk["10-top"].append("\t$(SSH_RASPI) 'killall -9 icoprog || true'")
 icosoc_mk["10-top"].append("\tsedexpr=\"$$( grep '// debug_.*->' icosoc.v | sed 's,.*// \(debug_\),s/\\1,; s, *-> *, /,; s, *$$, /;,;'; )\"; \\")
 icosoc_mk["10-top"].append("\t\t\t$(SSH_RASPI) \"icoprog -V $$( grep '// debug_.*->' icosoc.v | wc -l; )\" | sed -e \"$$sedexpr\" > debug.vcd")
 
 icosoc_ys["10-readvlog"].append("read_verilog -D ICOSOC icosoc.v")
+icosoc_ys["10-readvlog"].append("read_verilog -D ICOSOC %s/common/sync_reset.v" % basedir)
+icosoc_ys["10-readvlog"].append("read_verilog -D ICOSOC %s/common/uart_rx.v" % basedir)
+icosoc_ys["10-readvlog"].append("read_verilog -D ICOSOC %s/common/uart_tx.v" % basedir)
+icosoc_ys["10-readvlog"].append("read_verilog -D ICOSOC %s/common/sync_dd_c.v" % basedir)
 icosoc_ys["10-readvlog"].append("read_verilog -D ICOSOC %s/common/picorv32.v" % basedir)
-icosoc_ys["10-readvlog"].append("read_verilog -D ICOSOC %s/common/icosoc_crossclkfifo.v" % basedir)
 icosoc_ys["10-readvlog"].append("read_verilog -D ICOSOC %s/common/icosoc_debugger.v" % basedir)
 icosoc_ys["50-synthesis"].append("synth_ice40 -top icosoc -blif icosoc.blif")
 
@@ -936,7 +1015,10 @@ tbfiles = set()
 tbfiles.add("icosoc.v")
 tbfiles.add("testbench.v")
 tbfiles.add("%s/common/picorv32.v" % basedir)
-tbfiles.add("%s/common/icosoc_crossclkfifo.v" % basedir)
+tbfiles.add("%s/common/sync_reset.v" % basedir)
+tbfiles.add("%s/common/uart_rx.v" % basedir)
+tbfiles.add("%s/common/uart_tx.v" % basedir)
+tbfiles.add("%s/common/sync_dd_c.v" % basedir)
 tbfiles.add("%s/common/icosoc_debugger.v" % basedir)
 tbfiles.add("%s/common/sim_sram.v" % basedir)
 tbfiles.add("%s/common/sim_spiflash.v" % basedir)
