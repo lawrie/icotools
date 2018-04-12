@@ -57,7 +57,7 @@ def setboard(boardname):
 
     if boardname == "blackice2":
         pmod_locs = [
-            "94 91 88 85 95 93 90 87".split(),
+            "94 91 37 38 95 93 90 87".split(),
             "105 102 99 97 104 101 98 96".split(),
             "143 114 112 107 144 113 112 107".split(),
             "10 9 2 1 8 7 4 3".split(),
@@ -467,7 +467,7 @@ icosoc_v["30-raspif"].append("""
     // than 115200. 
     // In a normal design, one typically wouldn't use immediate loopback, so 115200 would be the 
     // right value.
-    uart_tx #(.BAUD(116000)) u_uart_tx (
+    uart_tx #(.BAUD(115200)) u_uart_tx (
         .clk (clk),
         .reset_(reset_),
         .tx_req(tx_req),
