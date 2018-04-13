@@ -246,36 +246,6 @@ static inline void icosoc_leds(uint8_t value)
     *(volatile uint32_t *)0x20000000 = value;
 }
 
-static inline void icosoc_spiflash_begin()
-{
-    *(volatile uint32_t *)0x20000004 &= ~8;
-}
-
-static inline void icosoc_spiflash_end()
-{
-    *(volatile uint32_t *)0x20000004 |= 8;
-}
-
-static inline uint8_t icosoc_spiflash_xfer(uint8_t value)
-{
-    *(volatile uint32_t *)0x20000008 = value;
-    return *(volatile uint32_t *)0x20000008;
-}
-
-static inline void icosoc_spiflash_read(void *buf, int offset, int length)
-{
-    icosoc_spiflash_begin();
-
-    icosoc_spiflash_xfer(0x03);
-    icosoc_spiflash_xfer(offset >> 16);
-    icosoc_spiflash_xfer(offset >> 8);
-    icosoc_spiflash_xfer(offset);
-
-    while (length--)
-        *(uint8_t*)(buf++) = icosoc_spiflash_xfer(0);
-
-    icosoc_spiflash_end();
-}
 """ % clock_freq_hz);
 
 icosoc_c.append("""
@@ -394,49 +364,8 @@ icosoc_v["30-sramif"].append("""
     assign SRAM_UB = (sram_wrlb || sram_wrub) ? !sram_wrub : 0;
 """)
 
-icosoc_v["30-raspif"].append("""
+icosoc_v["30-uart"].append("""
     // -------------------------------
-    // RasPi Interface
-    wire recv_sync;
-    // recv ep0: transmission test
-    wire recv_ep0_valid;
-    wire recv_ep0_ready;
-    wire [7:0] recv_ep0_data = 0;
-    // recv ep1: unused
-    wire recv_ep1_valid;
-    wire recv_ep1_ready = 1;
-    wire [7:0] recv_ep1_data = recv_ep0_data;
-
-    // recv ep2: console input
-    wire recv_ep2_valid = 0;
-    reg  recv_ep2_ready;
-    wire [7:0] recv_ep2_data = recv_ep0_data;
-    // recv ep3: unused
-    wire recv_ep3_valid;
-    wire recv_ep3_ready = 1;
-    wire [7:0] recv_ep3_data = recv_ep0_data;
-    // send ep0: transmission test
-    wire send_ep0_valid;
-    wire send_ep0_ready = 0;
-    wire [7:0] send_ep0_data;
-    // send ep1: debugger
-    wire send_ep1_valid;
-    wire send_ep1_ready = 0;
-    wire [7:0] send_ep1_data;
-    // send ep2: console output
-    reg  send_ep2_valid;
-    wire send_ep2_ready = 0;
-    reg  [7:0] send_ep2_data;
-    // send ep3: unused
-    wire send_ep3_valid = 0;
-    wire send_ep3_ready;
-    wire [7:0] send_ep3_data = 'bx;
-    // trigger lines
-    wire trigger_0;  // unused
-    wire trigger_1 = 0;  // debugger
-    wire trigger_2;  // unused
-    wire trigger_3;  // unused
-
     wire tx_req;
     wire tx_ready;
     wire [7:0] tx_data;
@@ -602,81 +531,6 @@ else:
 for vlog in modvlog:
     icosoc_ys["12-readvlog"].append("read_verilog -D ICOSOC %s" % (vlog))
 
-if len(debug_code) or len(debug_ports):
-    icosoc_v["90-debug"].append("""
-    // -------------------------------
-    // Additional debug code
-""")
-
-    for line in debug_code:
-        icosoc_v["90-debug"].append(line)
-
-    for port, expr in debug_ports.items():
-        icosoc_v["90-debug"].append("    assign %s = %s;" % (port, expr))
-
-if len(debug_signals):
-    icosoc_v["90-debug"].append("""
-    // -------------------------------
-    // On-chip logic analyzer (send ep1, trig1)
-
-    wire debug_enable;
-    wire debug_trigger;
-    wire debug_triggered;
-    wire [%d:0] debug_data;
-
-    icosoc_debugger #(
-        .WIDTH(%d),
-        .DEPTH(%d),
-        .TRIGAT(%d),
-        .MODE("%s")
-    ) debugger (
-        .clk(clk),
-        .resetn(resetn),
-
-        .enable(debug_enable),
-        .trigger(debug_trigger),
-        .triggered(debug_triggered),
-        .data(debug_data),
-
-        .dump_en(trigger_1),
-        .dump_valid(send_ep1_valid),
-        .dump_ready(send_ep1_ready),
-        .dump_data(send_ep1_data)
-    );
-
-    assign debug_enable = 1;
-    assign debug_trigger = 1;
-
-    assign debug_data = {""" % (len(debug_signals)-1, len(debug_signals), debug_depth, debug_trigat, debug_mode))
-
-    idx = len(debug_signals)-1
-    for label, expr in sorted(debug_signals.items(), key=(lambda item: re.sub(r"\d+", (lambda match: "%05d" % int(match.group(0))), item[0]))):
-        icosoc_v["90-debug"].append("        %-20s // debug_%d -> %s" % (expr + ("," if idx != 0 else ""), idx, label))
-        idx -= 1
-
-    icosoc_v["90-debug"].append("    };")
-
-else: # no debug signals
-    icosoc_v["90-debug"].append("""
-    // -------------------------------
-    // On-chip logic analyzer (send ep1, trig1), disabled
-
-    assign send_ep1_valid = 0;
-    assign send_ep1_data = 'bx;
-""");
-
-icosoc_v["68-flashmem"].append("""
-    // -------------------------------
-    // SPI Flash Interface
-    reg spiflash_cs;
-    reg spiflash_sclk;
-    reg spiflash_mosi;
-    wire spiflash_miso = 0;
-    reg [7:0] spiflash_data;
-    reg [3:0] spiflash_state;
-    wire flashmem_cond = 0;
-""")
-
 icosoc_v["70-bus"].append("""
     // -------------------------------
     // Memory/IO Interface
@@ -699,30 +553,18 @@ icosoc_v["70-bus"].append("""
 """)
 
 icosoc_v["72-bus"].append("""
-        if (send_ep2_ready)
-            send_ep2_valid <= 0;
 
         if (tx_ready)
             tx_req <= 0;
 
         rx_ready <= 0;
        
-	LED4 <= 1;
-        LED1 <= 0;
-        LED2 <= 0;
-
         if (!resetn) begin
             LED1 <= 0;
             LED2 <= 0;
             LED3 <= 0;
             LED4 <= 0;
 
-            spiflash_cs   <= 1;
-            spiflash_sclk <= 1;
-            spiflash_mosi <= 0;
-
-            send_ep2_valid <= 0;
-            spiflash_state <= 0;
         end else
         if (mem_valid && !mem_ready) begin
             (* parallel_case *)
@@ -783,22 +625,7 @@ icosoc_v["72-bus"].append("""
                     mem_rdata <= 0;
                     if (mem_wstrb) begin
                         if (mem_addr[23:16] == 0) begin
-                            if (mem_addr[7:0] == 8'h 00) {LED3, LED2, LED1} <= mem_wdata;
-                            if (mem_addr[7:0] == 8'h 04) {spiflash_cs, spiflash_sclk, spiflash_mosi} <= mem_wdata[3:1];
-                            if (mem_addr[7:0] == 8'h 08) begin
-                                if (spiflash_state == 0) begin
-                                    spiflash_data <= mem_wdata;
-                                    spiflash_mosi <= mem_wdata[7];
-                                end else begin
-                                    if (spiflash_state[0])
-                                        spiflash_data <= {spiflash_data, spiflash_miso};
-                                    else
-                                        spiflash_mosi <= spiflash_data[7];
-                                end
-                                spiflash_sclk <= spiflash_state[0];
-                                mem_ready <= spiflash_state == 15;
-                                spiflash_state <= spiflash_state + 1;
-                            end
+                            if (mem_addr[7:0] == 8'h 00) {LED4, LED3, LED2, LED1} <= mem_wdata;
                         end
 """)
 
@@ -806,12 +633,10 @@ icosoc_v["74-bus"].append("""
                     end else begin
                         if (mem_addr[23:16] == 0) begin
 `ifdef TESTBENCH
-                            if (mem_addr[7:0] == 8'h 00) mem_rdata <= {LED3, LED2, LED1} | 32'h8000_0000;
+                            if (mem_addr[7:0] == 8'h 00) mem_rdata <= {LED4, LED3, LED2, LED1} | 32'h8000_0000;
 `else
-                            if (mem_addr[7:0] == 8'h 00) mem_rdata <= {LED3, LED2, LED1};
+                            if (mem_addr[7:0] == 8'h 00) mem_rdata <= {LED4, LED3, LED2, LED1};
 `endif
-                            if (mem_addr[7:0] == 8'h 04) mem_rdata <= {spiflash_cs, spiflash_sclk, spiflash_mosi, spiflash_miso};
-                            if (mem_addr[7:0] == 8'h 08) mem_rdata <= spiflash_data;
                         end
 """)
 
@@ -820,7 +645,6 @@ icosoc_v["76-bus"].append("""
                 end
                 (mem_addr & 32'hF000_0000) == 32'h3000_0000: begin
                     if (mem_wstrb) begin
-                        LED3 <= 1;
                         if (tx_ready || !tx_req) begin
                             tx_req <= 1;
                             tx_data <= mem_wdata;
@@ -829,7 +653,6 @@ icosoc_v["76-bus"].append("""
                     end else begin
                         if (rx_req && !rx_ready) begin
                             rx_ready <= 1;
-                            LED2 <= 1;
                             mem_rdata <= rx_data;
                         end else begin
                             mem_rdata <= ~0;
@@ -977,6 +800,8 @@ icosoc_mk["10-top"].append("\tcat icosoc.bin >/dev/ttyACM0")
 icosoc_mk["10-top"].append("")
 icosoc_mk["10-top"].append("run: icosoc.bin appimage.hex")
 icosoc_mk["10-top"].append("\tcat icosoc.bin >/dev/ttyACM0")
+icosoc_mk["10-top"].append("\tstty -F /dev/ttyUSB0 -echo raw 115200")
+icosoc_mk["10-top"].append("\tsleep 2;cat appimage.hex ../../zero.bin >/dev/ttyUSB0")
 icosoc_mk["10-top"].append("")
 icosoc_mk["10-top"].append("softrun: appimage.hex")
 icosoc_mk["10-top"].append("\tcat icosoc.bin >/dev/ttyACM0")
@@ -1021,7 +846,6 @@ tbfiles.add("%s/common/uart_tx.v" % basedir)
 tbfiles.add("%s/common/sync_dd_c.v" % basedir)
 tbfiles.add("%s/common/icosoc_debugger.v" % basedir)
 tbfiles.add("%s/common/sim_sram.v" % basedir)
-tbfiles.add("%s/common/sim_spiflash.v" % basedir)
 tbfiles |= modvlog
 
 icosoc_mk["60-simulation"].append("testbench: %s" % (" ".join(tbfiles)))
@@ -1114,7 +938,6 @@ testbench["30-inst"][-1] = testbench["30-inst"][-1].rstrip(",")
 testbench["30-inst"].append("    );")
 testbench["30-inst"].append("")
 
-testbench["30-inst"].append("    sim_spiflash spiflash (")
 for net in sorted(iowires):
     if net.startswith("SPI_FLASH_"):
         testbench["30-inst"].append("        .%s(%s)," % (net, net))
@@ -1169,11 +992,8 @@ testbench["90-footer"].append("""
             sram.sram_memory[(i + 'h8000) % 'h10000][15:8] = appimage['h10000 + 2*i + 1];
         end
 
-        for (i = 1*1024*1024; i < 2*1024*1024; i=i+1) begin
-            spiflash.memory[i] = appimage[i];
-        end
-
         -> appimage_ready;
+
     end
 endmodule
 """);
