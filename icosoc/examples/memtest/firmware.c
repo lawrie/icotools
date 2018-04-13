@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define MAX_MEMSIZE_KB 4096
+#define MAX_MEMSIZE_KB 256
 
 static inline void setled(int v)
 {
