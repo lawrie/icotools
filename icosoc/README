@@ -25,9 +25,9 @@ Installing the IceStorm Flow
 ============================
 
 The IceStorm flow consists of the IceStorm Tools, Arachne-PNR, and Yosys.
-Follow the instructions on the IceStorm website to build the flow:
+Follow the instructions on the mystorm github Wiki to build the flow:
 
-	http://www.clifford.at/icestorm/#install
+	https://github.com/mystorm-org/BlackIce-II/wiki/Getting-Started
 
 
 Installing the RISC-V Toolchain
@@ -36,7 +36,7 @@ Installing the RISC-V Toolchain
 Follow the instructions in the PicoRV32 documentation:
 https://github.com/cliffordwolf/picorv32#building-a-pure-rv32i-toolchain
 
-IcoSoC can be configured with different ISA features (with and without
+BlackSoC can be configured with different ISA features (with and without
 compressed ISA, with or without multiply/divide instructions). To support
 all variations, different compiler toolchains must be built. To build all
 of them simply run:
@@ -50,7 +50,7 @@ of them simply run:
 IcoSoC Configuration File Format
 ================================
 
-See examples/ for some example SoCs. Each IcoSoC project has a Makefile
+See examples/ for some example SoCs. Each BlackSoC project has a Makefile
 that includes icosoc.mk, has a rule to create it using icosoc.py, and
 has a rule to build an appimage.hex file. It also must have an icosoc.cfg
 file that configures the SoC.
@@ -61,8 +61,8 @@ The icosoc.cfg file has a "global section" that contains statements that
 configure the overall SoC, and "module sections" for each peripheral module.
 
 
-IcoSoC Global Config Section
-============================
+BlackSoC Global Config Section
+==============================
 
 The following statements are supported in the global section:
 
