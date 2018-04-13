@@ -57,10 +57,10 @@ def setboard(boardname):
 
     if boardname == "blackice2":
         pmod_locs = [
-            "94 91 37 38 95 93 90 87".split(),
             "105 102 99 97 104 101 98 96".split(),
-            "143 114 112 107 144 113 112 107".split(),
+            "143 114 112 107 144 113 110 106".split(),
             "10 9 2 1 8 7 4 3".split(),
+            "20 19 16 15 18 17 12 11".split(),
         ]
 
     else:
