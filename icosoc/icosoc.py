@@ -61,6 +61,7 @@ def setboard(boardname):
             "143 114 112 107 144 113 110 106".split(),
             "10 9 2 1 8 7 4 3".split(),
             "20 19 16 15 18 17 12 11".split(),
+            "34 33 22 21 32 31 26 25".split(),
         ]
 
     else:
@@ -801,7 +802,7 @@ icosoc_mk["10-top"].append("")
 icosoc_mk["10-top"].append("run: icosoc.bin appimage.hex")
 icosoc_mk["10-top"].append("\tcat icosoc.bin >/dev/ttyACM0")
 icosoc_mk["10-top"].append("\tstty -F /dev/ttyUSB0 -echo raw 115200")
-icosoc_mk["10-top"].append("\tsleep 2;cat appimage.hex ../../zero.bin >/dev/ttyUSB0")
+icosoc_mk["10-top"].append("\tsleep 2;cat appimage.hex ../../common/zero.bin >/dev/ttyUSB0")
 icosoc_mk["10-top"].append("")
 icosoc_mk["10-top"].append("softrun: appimage.hex")
 icosoc_mk["10-top"].append("\tcat icosoc.bin >/dev/ttyACM0")
