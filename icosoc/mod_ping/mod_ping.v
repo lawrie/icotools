@@ -11,14 +11,14 @@ module icosoc_mod_ping #(
 	output reg [31:0] ctrl_rdat,
 	output reg ctrl_done,
 
-	output [31:0] COUNT,
         input TRIG, ECHO
 );
 
 	parameter ECHO_LENGTH = 1;
 	parameter TRIG_LENGTH = 1;
 
-	wire [31:0] count;
+	reg[7:0] distance;
+	reg valid;
         wire echo, trig, req, done;
 
 	SB_IO #(
@@ -41,7 +41,10 @@ module icosoc_mod_ping #(
 		ctrl_rdat <= 'bx;
 		ctrl_done <= 0;
 
-		if (done) req <= 0;
+		if (done) begin
+			req <= 0;
+			valid <= 1;
+		end
 
 		// Register file:
 		//   0x00 data register
@@ -49,18 +52,19 @@ module icosoc_mod_ping #(
 		if (resetn && !ctrl_done) begin
 			if (|ctrl_wr) begin
 				if (ctrl_addr == 0) begin
+					valid <= 0;
 					req <= 1;
 				end
 				ctrl_done <= 1;
 			end
 			if (ctrl_rd) begin
 				ctrl_done <= 1;
-				if (ctrl_addr == 0 && done) ctrl_rdat <= count;
+				if (ctrl_addr == 0 && valid) ctrl_rdat <= distance;
 			end
 		end
 	end
 
-	ping p (.clk(clk), .req(req), .echo(echo), .trig(trig), .distance(count), .done(done));
+	ping p (.clk(clk), .req(req), .echo(echo), .trig(trig), .distance(distance), .done(done));
 endmodule
 
 module ping (
@@ -71,82 +75,84 @@ module ping (
   output reg [7:0] distance,
   output reg done);
 
-reg [2:0] state = 3'd0;
-reg [31:0] counter;
+reg [2:0] state = s_idle;
+reg [31:0] counter = 0;
 reg [15:0] cm_counter;
-reg [7:0] cms;
+reg [15:0] cms;
 reg trigger;
 
 assign trig = trigger;
 
+localparam s_idle = 3'd0, s_trigger = 3'd1, s_echo_low = 3'd2, 
+          s_echo_high = 3'd3, s_pulse = 3'd4, s_done = 3'd5;
+
 always @(posedge clk)
 if (req && !done) begin // Request in progress
-  if (counter == 1000000) begin // If we get to 10 milliseconds, then error
-     state <= 3'd0;
+  if (counter == 200000) begin // If we get to 10 milliseconds, then error
+     state <= s_idle;
      done <= 1;
-     cms <= 8'd255;
+     distance <= 8'd255;
      counter <= 0;
-     trigger <= 0;
   end
   else case (state)
-  3'd0: begin // Got a request, set trigger low for 2 microseconds
+  s_idle: begin // Got a request, set trigger low for 2 microseconds
        trigger <= 0;
-       if (counter == 200) begin
+       if (counter == 40) begin
          trigger <= 1;
          counter <= 0;
-         state <= 3'd1;
+         state <= s_trigger;
        end
        else counter <= counter + 1;
      end
-  3'd1: begin // Wait for end of trigger pulse, and set it low
-       if (counter == 1000) begin
+  s_trigger: begin // Wait for end of trigger pulse, and set it low
+       if (counter == 200) begin
          trigger <= 0;
          counter <= 0;
-         state <= 3'd2;
+         state <= s_echo_low;
        end
        else counter <= counter + 1;
      end
-  3'd2: begin // Make sure echo is low
+  s_echo_low: begin // Make sure echo is low
        if (echo == 0) begin
          counter <= 0;
-         state <= 3'd3;
+         state <= s_echo_high;
        end
        else counter <= counter + 1;
      end
-  3'd3: begin // Wait for echo to go high
+  s_echo_high: begin // Wait for echo to go high
        if (echo == 1) begin
           counter <= 0;
           cms <= 0;
-          state <= 3'd4;
+          state <= s_pulse;
        end 
        else counter <= counter + 1;
      end
-  3'd4: begin // Wait for echo to go low
+  s_pulse: begin // Wait for echo to go low
        if (cm_counter == 1160) begin // cm at 20Mhz
          cm_counter <= 0;
          cms <= cms + 1;
        end
        else cm_counter <= cm_counter + 1;
 
-       if (echo == 0) state <= 3'd5;
+       if (echo == 0) state <= s_done;
        else counter <= counter + 1;
      end
-  3'd5: begin // Echo finished, return count in centimeters
+  s_done: begin // Echo finished, return count in centimeters
        counter <= 0;
        done <= 1;
-       distance = cms;
-       state <= 3'd0;
+       distance <= (cms < 255 ? cms : 255);
+       state <= s_idle;
      end
   default: begin // Echo finished, return count in centimeters
-       counter <= 0; // Don't understand why this occurs
+       counter <= 0; // Don't understand why this default case occurs
        done <= 1;
-       distance = cms;
-       state <= 3'd0;
+       distance <= (cms < 255 ? cms : 255);
+       state <= s_idle;
      end
   endcase
 end
 else begin
-  state <= 3'd0;
+  state <= s_idle;
   done <= 0;
   counter <= 0;
   trigger <= 0;
