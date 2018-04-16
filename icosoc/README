@@ -10,7 +10,7 @@ wnen programmed using the IceStorm Open Source FPGA flow:
 http://mystorm.uk/
 http://www.clifford.at/icestorm/
 
-Blacksoc is based on icosoc for the icoboard.
+BlackSoC is based on IcoSoC for the IcoBoard.
 
 This SoC generator creates SoCs using the PicoRV32 processor core that run on
 the Blackice II. Multiple IO standard interfaces are supported. The SoC has a
@@ -47,8 +47,8 @@ of them simply run:
 	make -j$(nproc) build-tools
 
 
-IcoSoC Configuration File Format
-================================
+BlackSoc Configuration File Format
+==================================
 
 See examples/ for some example SoCs. Each BlackSoC project has a Makefile
 that includes icosoc.mk, has a rule to create it using icosoc.py, and
@@ -83,8 +83,8 @@ muldiv_isa
 Enable support for multiply/divide instructions. This will significantly
 increase the size of the processor core.
 
-IcoSoC Module Sections
-======================
+BlackSoc Module Sections
+========================
 
 A module section starts with "mod <mod_type> <mod_name>". See the mod_*
 directories in this directory for supported module types. The <mod_name>
@@ -105,3 +105,9 @@ This will also create functions for accessing that peripheral module
 in icosoc.h and icosoc.c. The prefix "icosoc_<mod_name>_" is used for
 the function names.
 
+BlackSoc follows some of the conventions of IcoSoc, so that examples will 
+work with minimal changes. Pmods are all double ones and there are five of 
+them corresponding to pmod3/4, pmod 5/6, pmod 7/8, pmod 9/10 and pmod 11/12 
+on Blackice II.  For example BlackSoc pmod1 corresponds to BlackIce pmod 3/4. 
+(BlackIce pmod 1/2 is excluded as it includes the uart pins). Other 
+BlackIce II pins can be referred to as Pn, where n is the pin number. 
