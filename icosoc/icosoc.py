@@ -73,6 +73,9 @@ def make_pins(pname):
 
     ploc = None
 
+    if pname == "CLKIN":
+        return [pname]
+
     m = re.match(r"^pmod(\d+)_(\d+)$", pname)
     if m:
         pmod_num = int(m.group(1))
