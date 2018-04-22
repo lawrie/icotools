@@ -34,12 +34,7 @@ module icosoc_mod_tone (
 				ctrl_done <= 1;			
 				if (ctrl_addr == 0) period <= ctrl_wdat;
 				
-			end
-			if (ctrl_rd) begin
-				ctrl_done <= 1;
-				ctrl_rdat <= value;
-			end
-			
+			end			
 		end
 	end
 
