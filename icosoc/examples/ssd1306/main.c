@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include "icosoc.h"
+#include "font.h"
 
 static unsigned char buffer [1024];
 
@@ -73,7 +74,7 @@ void drawBitmap(int16_t x, int16_t y,
     }
 }
 
-drawCircle(int16_t x0, int16_t y0, int16_t r,
+void drawCircle(int16_t x0, int16_t y0, int16_t r,
         uint16_t color) {
     int16_t f = 1 - r;
     int16_t ddF_x = 1;
@@ -107,19 +108,53 @@ drawCircle(int16_t x0, int16_t y0, int16_t r,
     }
 }
 
-fillRect(int16_t x, int16_t y, int16_t w, int16_t h,
+void fillRect(int16_t x, int16_t y, int16_t w, int16_t h,
         uint16_t color) {
     for (int16_t i=x; i<x+w; i++) {
         drawLine(i, y, i, y+h-1, color);
     }
 }
 
-drawRect(int16_t x, int16_t y, int16_t w, int16_t h,
+void drawRect(int16_t x, int16_t y, int16_t w, int16_t h,
         uint16_t color) {
     drawLine(x, y, x+w-1, y, color);
     drawLine(x, y+h-1, x+w-1, y+h-1, color);
     drawLine(x, y, x, y+h-1, color);
     drawLine(x+w-1, y, x+w-1, y+h-1, color);
+}
+
+void drawTriangle(int16_t x0, int16_t y0,
+        int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color) {
+    drawLine(x0, y0, x1, y1, color);
+    drawLine(x1, y1, x2, y2, color);
+    drawLine(x2, y2, x0, y0, color);
+}
+
+void drawChar(int16_t x, int16_t y, unsigned char c,
+  uint16_t color) {
+
+    if((x >= WIDTH)            || // Clip right
+       (y >= HEIGHT)           || // Clip bottom
+       ((x + 6 - 1) < 0) || // Clip left
+       ((y + 8 - 1) < 0))   // Clip top
+        return;
+
+    for(int8_t i=0; i<5; i++ ) { // Char bitmap = 5 columns
+        uint8_t line = font[c * 5 + i];
+        for(int8_t j=0; j<8; j++, line >>= 1) {
+            if(line & 1) {
+                drawPixel(x+i, y+j, color);
+            } else {
+                drawPixel(x+i, y+j, 0);
+            }
+        }
+    }
+}
+
+void drawText(int16_t x, int16_t y, const char *text, int16_t c) {
+    for(int i=0;text[i];i++) {
+        drawChar(x + i*6,y,text[i],c);
+    }
 }
 
 static const unsigned char image1[] =
@@ -232,7 +267,7 @@ int main()
 	printf("Initialisation done\n");
 
 	//for(int x=0;x<4;x++) drawPixel(x,x,1);
-        drawBitmap(0,0,image1,WIDTH,HEIGHT,1);
+        //drawBitmap(0,0,image1,WIDTH,HEIGHT,1);
 	//drawLine(0,0,127,63,1);
 	//drawLine(127,0,0,63,1);
 	//drawCircle(64,32,20,1);
@@ -240,6 +275,7 @@ int main()
 	//buffer[1] = 0xff;
         //buffer[127] = 0xff;
 	//buffer[128] = 0xff;
+	drawText(0,0,"Hello World!",1);
 
 	for (uint8_t i = 0;; i++)
 	{
