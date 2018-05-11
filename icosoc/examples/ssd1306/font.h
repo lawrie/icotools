@@ -1,3 +1,7 @@
+// This is the 'classic' fixed-space bitmap font for Adafruit_GFX since 1.0.
+
+// Standard ASCII 5x7 font
+
 static const unsigned char font[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00,
 	0x3E, 0x5B, 0x4F, 0x5B, 0x3E,
