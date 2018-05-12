@@ -91,6 +91,12 @@ void send_data(uint8_t d1, uint8_t d2) {
         //printf("Status is %lx\n",icosoc_i2c_status());
 }
 
+void display() {
+	for(int j=0;j<512;j++) {
+		send_data(buffer[j*2], buffer[j*2 + 1]);
+	}
+}
+
 int main()
 {
 	printf("Initialising\n");
@@ -122,18 +128,12 @@ int main()
 	//buffer[1] = 0xff;
         //buffer[127] = 0xff;
 	//buffer[128] = 0xff;
-	drawText(0,0,"Hello World!",1);
+	drawText(20,30,"Hello World!",1);
 
 	for (uint8_t i = 0;; i++)
 	{
 		icosoc_leds(i);
-		for(int j=0;j<512;j++) {
-			uint8_t data1 = (i % 2 == 0 ? 0 : buffer[j*2]);
-			uint8_t data2 = (i % 2 == 0 ? 0 : buffer[j*2 + 1]);
-
-			send_data(data1, data2);
-		}
-		
+		display();	
 		printf("Status is %lx\n",icosoc_i2c_status());
 
 		for (int i = 0; i < 100000; i++)
