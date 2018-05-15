@@ -6,7 +6,7 @@
 void send_rgb_cmd(uint8_t r, uint8_t d) {
 	uint32_t status;
 
-	icosoc_i2c_write(0x62, r, d, 0);
+	icosoc_i2c_write(0x62, r, d, d);
 	do {
 		status = icosoc_i2c_status();
 	} while ((status >> 31) != 0);
@@ -32,10 +32,10 @@ void send_cmd(uint8_t d) {
 	printf("Status is %lx\n",icosoc_i2c_status());
 }
 
-void send_data(uint8_t d) {
+void send_data(uint8_t d1, uint8_t d2) {
         uint32_t status;
 
-        icosoc_i2c_write(0x3c, 0x40, d, 0);
+        icosoc_i2c_write(0x3e, 0x40, d1, d2);
         do {
                 status = icosoc_i2c_status();
         } while ((status >> 31) != 0);
@@ -49,7 +49,7 @@ void setText(const char *text) {
 	send_cmd(0x08 | 0x04);
 	send_cmd(0x28);
 	for (int i = 0; i < 100000; i++) asm volatile ("");
-	for(int i=0;text[i];i++) {
+	for(int i=0;text[i];i+= 2) {
 		uint8_t c = text[i];
 		if (c == '\n' || count == 16) {
 			count = 0;
@@ -59,7 +59,7 @@ void setText(const char *text) {
 			if (c == '\n') continue;
 		}
 		count++;
-		send_data(c);
+		send_data(c, text[i+1]);
 	}
 }
 	
@@ -71,7 +71,7 @@ int main()
 		setRGB(0,128,64);		
 		setText("Hello World!");
 		
-		for (int i = 0; i < 100000; i++)
+		for (int i = 0; i < 1000000; i++)
 			asm volatile ("");
 	}
 }
