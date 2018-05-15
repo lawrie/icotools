@@ -81,6 +81,16 @@ void send_cmd(uint8_t r, uint8_t d) {
 	printf("Status is %lx\n",icosoc_i2c_status());
 }
 
+void send_cmd1(uint8_t r) {
+	uint32_t status;
+
+	icosoc_i2c_write1(0x3c, 0x00, r);
+	do {
+		status = icosoc_i2c_status();
+	} while ((status >> 31) != 0);
+	printf("Status is %lx\n",icosoc_i2c_status());
+}
+
 void send_data(uint8_t d1, uint8_t d2) {
         uint32_t status;
 
@@ -101,10 +111,12 @@ int main()
 {
 	printf("Initialising\n");
 
-	send_cmd(0xAE, 0xA6); // Display off, Normal display
-	send_cmd(0x40, 0xC8); // Set start line zero, Com scan Dec
+	send_cmd1(0xAE); // Display off
+	send_cmd1(0xA6); // Normal display
+	send_cmd1(0x40); // Set start line zero
+	send_cmd1(0xC8); // Com scan Dec
 	send_cmd(0x81, 0xCF); // Set contrast
-	send_cmd(0xA4, 0xA4); // Set Display all on resume
+	send_cmd1(0xA4); // Set Display all on resume
 	send_cmd(0xA8, 0x3F); // Set multiplex
 	send_cmd(0xD3, 0x00); // Set Display offset
 	send_cmd(0xD5, 0x80); // Set Display Clock Div
@@ -115,7 +127,8 @@ int main()
 	send_cmd(0x20, 0x00); // Memory mode
         // Need to set column address to 0, 127
         // Need to set page address to 0, 7
-	send_cmd(0xA1, 0xAF); // Seg remap 1, Switch on
+	send_cmd1(0xA1); // Seg remap 1
+	send_cmd1(0xAF); // Switch on
 
 	printf("Initialisation done\n");
 
