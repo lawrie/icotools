@@ -7,6 +7,12 @@ static inline void icosoc_@name@_write(uint8_t addr, uint8_t reg, uint8_t data1,
 		(addr << 24) + (reg << 16) + (data1 << 8) + data2;
 }
 
+static inline void icosoc_@name@_write1(uint8_t addr, uint8_t reg, uint8_t data)
+{
+    *(volatile uint32_t*)(0x20000000 + @addr@ * 0x10000) = 
+		((addr << 24) + (reg << 16) + (data << 8)) | 0x80000000;
+}
+
 static inline uint32_t icosoc_@name@_status()
 {
     return *(volatile int32_t*)(0x20000000 + @addr@ * 0x10000);

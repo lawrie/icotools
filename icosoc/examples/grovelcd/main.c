@@ -6,7 +6,7 @@
 void send_rgb_cmd(uint8_t r, uint8_t d) {
 	uint32_t status;
 
-	icosoc_i2c_write(0x62, r, d, d);
+	icosoc_i2c_write1(0x62, r, d);
 	do {
 		status = icosoc_i2c_status();
 	} while ((status >> 31) != 0);
@@ -25,17 +25,17 @@ void setRGB(uint8_t r, uint8_t g, uint8_t b) {
 void send_cmd(uint8_t d) {
 	uint32_t status;
 
-	icosoc_i2c_write(0x3e, 0x80, d, 0);
+	icosoc_i2c_write1(0x3e, 0x80, d);
 	do {
 		status = icosoc_i2c_status();
 	} while ((status >> 31) != 0);
 	printf("Status is %lx\n",icosoc_i2c_status());
 }
 
-void send_data(uint8_t d1, uint8_t d2) {
+void send_data(uint8_t d) {
         uint32_t status;
 
-        icosoc_i2c_write(0x3e, 0x40, d1, d2);
+        icosoc_i2c_write1(0x3e, 0x40, d);
         do {
                 status = icosoc_i2c_status();
         } while ((status >> 31) != 0);
@@ -49,7 +49,7 @@ void setText(const char *text) {
 	send_cmd(0x08 | 0x04);
 	send_cmd(0x28);
 	for (int i = 0; i < 100000; i++) asm volatile ("");
-	for(int i=0;text[i];i+= 2) {
+	for(int i=0;text[i];i++) {
 		uint8_t c = text[i];
 		if (c == '\n' || count == 16) {
 			count = 0;
@@ -59,7 +59,7 @@ void setText(const char *text) {
 			if (c == '\n') continue;
 		}
 		count++;
-		send_data(c, text[i+1]);
+		send_data(c);
 	}
 }
 	

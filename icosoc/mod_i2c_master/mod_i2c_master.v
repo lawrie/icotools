@@ -66,6 +66,8 @@ module I2C_master
   output reg [31:0] status      // Status of I2C including most recently read data
 );
 
+wire read = 0;
+
 reg sda_out, sda_dir, scl_out, scl_dir;
 
 SB_IO #(
@@ -126,13 +128,11 @@ endfunction
 
 reg [31:0] ctrl_reg;    // I2C control register
 // Bit definitions:
-//  31    Read / not write.
-//  30    Repeated Start.  On read cycles setting this bit uses repeated start instead of stop start sequence.
-//  29:24 Reserved.
-//  23:17 7-bit I2C address of slave.
-//  16    Don't care.  Allows use of read or write address when writing this byte.
-//  15:8  Register Subaddress
-//  7:0   Data to write.  Don't care on read cycles.
+//  31    Short write.
+//  30:24 Reserved.  7-bit I2C address of slave.
+//  23:16 Register Subaddress
+//  15:8  First data byte. Don't care on read cycles 
+//  7:0   Second data byte.  Don't care on read cycles.
 
 //reg [31:0] status;      // I2C status register
 // Bit definitions
@@ -294,7 +294,8 @@ else
               // Data byte and final Slave Ack do not apply for reads
               // For Stop then start, SDA must be low after last ack cycle.
               // For repeated start, SDA must be high after last ack cycle.
-              if (ctrl_reg[31])   // reading requires subaddr write then data read
+              // Read is currently broken
+              if (read)   // reading requires subaddr write then data read
                 if (wr_cyc)
                   shift_reg <= {ctrl_reg[23:17],1'b0,1'b1,ctrl_reg[15:8],1'b1,ctrl_reg[30],7'b0,1'b0};
                 else
@@ -322,6 +323,7 @@ else
         begin
           // Shift data onto the SDA line
           float_sda <= shift_reg[35];
+
           shift_reg <= {shift_reg[34:0],1'b0};  // shift left
           timer <= t_low; // 4.7us min from spec
           rtn_state <= clock_high;
@@ -343,8 +345,8 @@ else
                 begin
                   status[29] <= sda;  // SDA should be driven low for slave ACK
                 end
-              if ((bit_count == 18) & ctrl_reg[31]    // Reading and past first data ack
-                  || (bit_count == 36))               // Past second data ack
+              if ((bit_count == 18) & read    // Reading and past first data ack
+                  || (bit_count == 36) || (ctrl_reg[31] && bit_count == 27))               // Past first or second data ack
                 begin
                   timer <= t_su_sto;  // 4.0us from spec
                   rtn_state <= stop;
@@ -367,7 +369,7 @@ else
           float_sda <= 1;   // SDA will already be high in the case of repeated start
           if (sda)
             begin
-              if (ctrl_reg[31]) // reading
+              if (read) // reading
                 begin
                   if (wr_cyc)   // just finished sending subaddress
                     begin
@@ -412,5 +414,3 @@ else
   end
 
 endmodule
-
-`default_nettype wire
