@@ -102,13 +102,17 @@ void send_data(uint8_t d1, uint8_t d2) {
 }
 
 void display() {
+	send_cmd1(0x21); // Column addr
+	send_cmd(0x00,0x7f);
+	send_cmd1(0x22); // Page addr
+	send_cmd(0,7);
+
 	for(int j=0;j<512;j++) {
 		send_data(buffer[j*2], buffer[j*2 + 1]);
 	}
 }
 
-int main()
-{
+void init() {
 	printf("Initialising\n");
 
 	send_cmd1(0xAE); // Display off
@@ -131,17 +135,14 @@ int main()
 	send_cmd1(0xAF); // Switch on
 
 	printf("Initialisation done\n");
+}
 
-	//for(int x=0;x<4;x++) drawPixel(x,x,1);
-        //drawBitmap(0,0,image1,WIDTH,HEIGHT,1);
-	//drawLine(0,0,127,63,1);
-	//drawLine(127,0,0,63,1);
-	//drawCircle(64,32,20,1);
-        //buffer[0] = 0xff;
-	//buffer[1] = 0xff;
-        //buffer[127] = 0xff;
-	//buffer[128] = 0xff;
-	drawText(20,30,"Hello World!",1);
+int main()
+{
+	init();
+
+	drawText(0,0,"ssd1306 yellow/blue",1);
+	drawText(30,30,"Hello World!",1);
 
 	for (uint8_t i = 0;; i++)
 	{
