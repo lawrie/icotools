@@ -26,6 +26,12 @@ module icosoc_mod_i2c_master (
 				ctrl_done <= 1;			
 				if (ctrl_addr == 0) begin
 					wr_ctrl <= 1;
+					read <= 0;
+					ctrl_data = ctrl_wdat;
+				end
+				else if (ctrl_addr == 4) begin
+					wr_ctrl <= 1;
+					read <= 1;
 					ctrl_data = ctrl_wdat;
 				end
 				
@@ -40,8 +46,9 @@ module icosoc_mod_i2c_master (
 	wire [31:0] ctrl_data;
 	reg [31:0] status;
 	wire wr_ctrl;
+	reg read;
 
-	I2C_master i2c (.SDA(SDA), .SCL(SCL), .sys_clock(clk), 
+	I2C_master i2c (.SDA(SDA), .SCL(SCL), .sys_clock(clk), .read(read),
 			.reset(!resetn), .ctrl_data(ctrl_data), .wr_ctrl(wr_ctrl), .status(status));
 
 endmodule
@@ -63,10 +70,9 @@ module I2C_master
   input wire        reset,      // power-on reset - puts I2C bus into idle state
   input wire [31:0] ctrl_data,  // Data bus for writing the control register
   input wire        wr_ctrl,    // Write enable for control register, also starts I2C cycles
+  input wire read,
   output reg [31:0] status      // Status of I2C including most recently read data
 );
-
-wire read = 0;
 
 reg sda_out, sda_dir, scl_out, scl_dir;
 
@@ -297,9 +303,9 @@ else
               // Read is currently broken
               if (read)   // reading requires subaddr write then data read
                 if (wr_cyc)
-                  shift_reg <= {ctrl_reg[23:17],1'b0,1'b1,ctrl_reg[15:8],1'b1,ctrl_reg[30],7'b0,1'b0};
+                  shift_reg <= {ctrl_reg[23:17],1'b0,1'b1,ctrl_reg[15:8],1'b1,ctrl_reg[30],7'b0,1'b0,9'b0};
                 else
-                  shift_reg <= {ctrl_reg[23:17],1'b1,1'b1,8'hff,1'b1,8'b0,1'b0};
+                  shift_reg <= {ctrl_reg[23:17],1'b1,1'b1,8'hff,1'b1,8'b0,1'b0,9'b0};
               else                // Writing
                 shift_reg <= {ctrl_reg[30:24], 1'b0, 1'b1, ctrl_reg[23:16],1'b1,ctrl_reg[15:8],1'b1,ctrl_reg[7:0],1'b1};
               bit_count <= 0;
