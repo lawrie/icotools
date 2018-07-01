@@ -1,0 +1,97 @@
+#include <stdio.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include "icosoc.h"
+
+#define OP_NOOP   0
+#define OP_DIGIT0 1
+#define OP_DIGIT1 2
+#define OP_DIGIT2 3
+#define OP_DIGIT3 4
+#define OP_DIGIT4 5
+#define OP_DIGIT5 6
+#define OP_DIGIT6 7
+#define OP_DIGIT7 8
+#define OP_DECODEMODE  9
+#define OP_INTENSITY   10
+#define OP_SCANLIMIT   11
+#define OP_SHUTDOWN    12
+#define OP_DISPLAYTEST 15
+
+const static uint8_t charTable []  = {
+    0b01111110,0b00110000,0b01101101,0b01111001,0b00110011,0b01011011,0b01011111,0b01110000,
+    0b01111111,0b01111011,0b01110111,0b00011111,0b00001101,0b00111101,0b01001111,0b01000111,
+    0b00000000,0b00000000,0b00000000,0b00000000,0b00000000,0b00000000,0b00000000,0b00000000,
+    0b00000000,0b00000000,0b00000000,0b00000000,0b00000000,0b00000000,0b00000000,0b00000000,
+    0b00000000,0b00000000,0b00000000,0b00000000,0b00000000,0b00000000,0b00000000,0b00000000,
+    0b00000000,0b00000000,0b00000000,0b00000000,0b10000000,0b00000001,0b10000000,0b00000000,
+    0b01111110,0b00110000,0b01101101,0b01111001,0b00110011,0b01011011,0b01011111,0b01110000,
+    0b01111111,0b01111011,0b00000000,0b00000000,0b00000000,0b00000000,0b00000000,0b00000000,
+    0b00000000,0b01110111,0b00011111,0b00001101,0b00111101,0b01001111,0b01000111,0b00000000,
+    0b00110111,0b00000000,0b00000000,0b00000000,0b00001110,0b00000000,0b00000000,0b00000000,
+    0b01100111,0b00000000,0b00000000,0b00000000,0b00000000,0b00000000,0b00000000,0b00000000,
+    0b00000000,0b00000000,0b00000000,0b00000000,0b00000000,0b00000000,0b00000000,0b00001000,
+    0b00000000,0b01110111,0b00011111,0b00001101,0b00111101,0b01001111,0b01000111,0b00000000,
+    0b00110111,0b00000000,0b00000000,0b00000000,0b00001110,0b00000000,0b00010101,0b00011101,
+    0b01100111,0b00000000,0b00000000,0b00000000,0b00000000,0b00000000,0b00000000,0b00000000,
+    0b00000000,0b00000000,0b00000000,0b00000000,0b00000000,0b00000000,0b00000000,0b00000000
+};
+
+static void seg_cs(bool enable)
+{
+	if (enable) {
+		icosoc_seg_cs(0);
+	} else {
+		icosoc_seg_cs(1);
+	}
+}
+
+static uint8_t seg_xfer(uint8_t value)
+{
+	uint8_t ret = icosoc_seg_xfer(value);
+	return ret;
+}
+
+static void seg_cmd(uint8_t op, uint8_t data) {
+	seg_cs(true);
+	seg_xfer(op);
+	seg_xfer(data);
+	seg_cs(false);
+}
+
+static void seg_init()
+{
+	seg_cs(false);
+	icosoc_seg_prescale(20);
+	icosoc_seg_mode(false, false);
+
+	seg_cmd(OP_DISPLAYTEST,0);
+	seg_cmd(OP_DECODEMODE,0);
+	seg_cmd(OP_SCANLIMIT,7);
+	seg_cmd(OP_INTENSITY,10);
+	seg_cmd(OP_SHUTDOWN, 1);
+
+	seg_cmd(OP_DIGIT0, 0);
+}
+
+int main()
+{
+	seg_init();
+
+	for (uint32_t i = 0;; i++)
+	{
+		icosoc_leds(i);
+		seg_cmd(OP_DIGIT0, charTable[i % 10]);
+		seg_cmd(OP_DIGIT1, charTable[i/10 % 10]);
+		seg_cmd(OP_DIGIT2, charTable[i/100 % 10]);
+		seg_cmd(OP_DIGIT3, charTable[i/1000 % 10]);
+		seg_cmd(OP_DIGIT4, charTable[i/10000 % 10]);
+		seg_cmd(OP_DIGIT5, charTable[i/100000 % 10]);
+		seg_cmd(OP_DIGIT6, charTable[i/1000000 % 10]);
+		seg_cmd(OP_DIGIT7, charTable[i/10000000 % 10]);
+
+		for (int i = 0; i < 100000; i++)
+			asm volatile ("");
+
+	}
+}
