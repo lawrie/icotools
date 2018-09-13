@@ -279,7 +279,7 @@ else
         begin
           float_sda <= 1;
           float_scl <= 1;
-          wr_cyc <= 1;
+          wr_cyc <= ~ctrl_data[0];
           status[31] <= 0;  // Not busy
           status[26] <= 0;  // Done initialization
           if (wr_ctrl & !status[31])  // successful write to ctrl_reg

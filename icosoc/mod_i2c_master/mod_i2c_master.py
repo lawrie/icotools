@@ -23,6 +23,12 @@ static inline void icosoc_@name@_read(uint8_t addr, uint8_t reg)
     *(volatile uint32_t*)(0x20000004 + @addr@ * 0x10000) = 
 		(addr << 17) + (reg << 8);
 }
+
+static inline void icosoc_@name@_read_no_wr(uint8_t addr)
+{
+    *(volatile uint32_t*)(0x20000004 + @addr@ * 0x10000) = 
+		(addr << 17) + 1;
+}
 """
     code = code.replace("@name@", mod["name"])
     code = code.replace("@addr@", mod["addr"])
