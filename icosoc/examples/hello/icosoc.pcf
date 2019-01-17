@@ -1,0 +1,79 @@
+# #### This file is auto-generated from icosoc.py. Do not edit! ####
+
+# ++ 10-std ++
+
+set_io CLKIN 129
+set_io GRESET 128
+
+set_io LED1 70
+set_io LED2 67
+set_io LED3 68
+set_io LED4 71
+
+set_io RX 88
+set_io TX 85
+
+set_io SRAM_A0  137
+set_io SRAM_A1  138
+set_io SRAM_A2  139
+set_io SRAM_A3  141
+set_io SRAM_A4  142
+set_io SRAM_A5  42
+set_io SRAM_A6  43
+set_io SRAM_A7  44
+set_io SRAM_A8  73
+set_io SRAM_A9  74
+set_io SRAM_A10 75
+set_io SRAM_A11 76
+set_io SRAM_A12 115
+set_io SRAM_A13 116
+set_io SRAM_A14 117
+set_io SRAM_A15 118
+set_io SRAM_A16 119
+set_io SRAM_A17 78
+#set_io SRAM_A18 P8
+
+set_io SRAM_D0  136
+set_io SRAM_D1  135
+set_io SRAM_D2  134
+set_io SRAM_D3  130
+set_io SRAM_D4  125
+set_io SRAM_D5  124
+set_io SRAM_D6  122
+set_io SRAM_D7  121
+set_io SRAM_D8  62
+set_io SRAM_D9  61
+set_io SRAM_D10 60
+set_io SRAM_D11 56
+set_io SRAM_D12 55
+set_io SRAM_D13 48
+set_io SRAM_D14 47
+set_io SRAM_D15 45
+
+set_io SRAM_CE  23
+set_io SRAM_WE  120
+set_io SRAM_OE  29
+set_io SRAM_LB  24
+set_io SRAM_UB  28
+
+
+# ++ 12-iopins ++
+set_io pmod3_3 2
+set_io pmod3_2 9
+set_io pmod2_10 106
+set_io pmod2_9 110
+set_io pmod2_8 113
+set_io pmod2_7 144
+set_io pmod2_4 107
+set_io pmod2_3 112
+set_io pmod2_2 114
+set_io pmod2_1 143
+set_io pmod1_10 96
+set_io pmod1_9 98
+set_io pmod1_8 101
+set_io pmod1_7 104
+set_io pmod1_4 97
+set_io pmod1_3 99
+set_io pmod1_2 102
+set_io pmod1_1 105
+set_io P8 8
