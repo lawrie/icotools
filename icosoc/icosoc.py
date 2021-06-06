@@ -824,14 +824,14 @@ icosoc_ys["10-readvlog"].append("read_verilog -D ICOSOC %s/common/uart_tx.v" % b
 icosoc_ys["10-readvlog"].append("read_verilog -D ICOSOC %s/common/sync_dd_c.v" % basedir)
 icosoc_ys["10-readvlog"].append("read_verilog -D ICOSOC %s/common/picorv32.v" % basedir)
 icosoc_ys["10-readvlog"].append("read_verilog -D ICOSOC %s/common/icosoc_debugger.v" % basedir)
-icosoc_ys["50-synthesis"].append("synth_ice40 -top icosoc -blif icosoc.blif")
+icosoc_ys["50-synthesis"].append("synth_ice40 -top icosoc -json icosoc.json")
 
-icosoc_mk["50-synthesis"].append("icosoc.blif: icosoc.v icosoc.ys firmware_seed.hex")
+icosoc_mk["50-synthesis"].append("icosoc.json: icosoc.v icosoc.ys firmware_seed.hex")
 icosoc_mk["50-synthesis"].append("\tyosys -l icosoc.log -v3 icosoc.ys")
 
-icosoc_mk["50-synthesis"].append("icosoc.asc: icosoc.blif icosoc.pcf")
+icosoc_mk["50-synthesis"].append("icosoc.asc: icosoc.json icosoc.pcf")
 icosoc_mk["50-synthesis"].append("\tset -x; for seed in 1234 2345 3456 4567 5678 6789 7890; do \\")
-icosoc_mk["50-synthesis"].append("\t\tarachne-pnr -s $$seed -d 8k -P tq144:4k -p icosoc.pcf -o icosoc.new_asc icosoc.blif && \\")
+icosoc_mk["50-synthesis"].append("\t\tnextpnr-ice40 --freq 20 --hx8k --package tq144:4k --json icosoc.json --pcf icosoc.pcf --asc icosoc.new_asc --opt-timing --placer heap && \\")
 icosoc_mk["50-synthesis"].append("\t\ticetime -c 20 -d hx8k -tr icosoc.rpt icosoc.new_asc && exit 0; \\")
 icosoc_mk["50-synthesis"].append("\tdone; false")
 icosoc_mk["50-synthesis"].append("\tmv icosoc.new_asc icosoc.asc")
